@@ -44,6 +44,6 @@ next-env.d.ts
 storybook-static
 
 # BMAD
-.bmad-core/
-.windsurf/
-docs/
+# .bmad-core/
+# .windsurf/
+# docs/
