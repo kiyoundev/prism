@@ -45,3 +45,27 @@
 - Feature folders under `apps/web/features/` encapsulate UI, hooks, and test files per story.
 - Migration from JSON to Supabase moves data from `data/` into managed Postgres tables.
 - Keep CI/CD configuration (`.github/workflows/`) co-located once initialized.
+
+
+# Recommended Directory Layout
+
+- **`src/app/`**
+  Page routes and layouts (`page.tsx`, `layout.tsx`, etc.).
+  Example: `src/app/known-scams/page.tsx` renders `/known-scams`.
+  Nested folders (e.g., `src/app/admin/reports/page.tsx`) produce nested routes (`/admin/reports`).
+
+- **`src/packages/shared/utils/`**
+  Reusable helpers such as `supabase/server.ts`, hashing utilities, and other cross-cutting logic.
+
+- **`data/`**
+  Curated JSON, attachments, and other seed/test fixtures.
+  Example: `data/known-scams/` for ground-truth SMS samples separate from live Supabase data.
+
+- **`supabase/`**
+  CLI-generated migrations, seed scripts, and RLS policies.
+
+- **`configs/`**
+  Tool configuration (ESLint, Jest, Storybook, Tailwind, etc.).
+
+- **`docs/`**
+  Documentation, including architecture references such as this source-tree guide.
