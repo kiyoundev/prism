@@ -1,6 +1,6 @@
 # Prism — Issue Backlog
 
-53 atomic issues sliced for solo part-time development.
+52 atomic issues sliced for solo part-time development.
 Estimated total: ~78 hours → **MVP target: end of August 2026**.
 
 All issues are AFK (no human decision gate required).
@@ -33,8 +33,7 @@ All issues are AFK (no human decision gate required).
 |---|---|---|---|
 | 1 | Fix requirements.txt: uncomment unidecode (crash fix) | 30m | — |
 | 2 | requirements.txt: add alembic, rapidfuzz, scikit-learn, anthropic, numpy with stage comments | 30m | #1 |
-| 3 | `pyproject.toml`: configure black + ruff | 30m | — |
-| 4 | pre-commit hooks: wire black + ruff | 30m | #3 |
+| 3 | Dev tooling: Ruff (Python) + Prettier (frontend) — format on save | 30m | — |
 
 ---
 
@@ -49,7 +48,7 @@ All issues are AFK (no human decision gate required).
 | 9 | `docker-compose.yml` for local dev (FastAPI + Postgres) | 1h | #5 |
 | 10 | Alembic init + `messages` table migration | 2h | #5 |
 | 11 | `message_analysis` table migration | 1h | #10 |
-| 12 | GitHub Actions CI: lint + test on PR | 1h | #3, #4 |
+| 12 | GitHub Actions CI: lint + test on PR | 1h | #3 |
 | 13 | Frontend: install shadcn/ui + Lucide React, base layout | 1h | — |
 
 ---
