@@ -1,0 +1,63 @@
+{
+    "delivery": [
+        "return to sender",
+        "missed delivery",
+        "schedule delivery",
+        "attempted delivery",
+        "delivery window",
+        "tracking number",
+        "track id",
+        "delivery",
+        "package",
+        "parcel",
+        "courier",
+        "signature"
+    ],
+    "ticket": [
+        "notice",
+        "parking",
+        "provincial offences",
+        "by-law",
+        "bylaw",
+        "violation",
+        "penalty",
+        "fine",
+        "ticket"
+    ],
+    "banking": [
+        "e-transfer",
+        "interac",
+        "wire transfer",
+        "3d secure",
+        "chargeback",
+        "card payment",
+        "transaction",
+        "statement",
+        "balance"
+    ],
+    "tax": [
+        "notice of assessment",
+        "cra refund",
+        "tax rebate",
+        "revenue canada",
+        "assessment",
+        "refund",
+        "benefit",
+        "tax"
+    ],
+    "verification": [
+        "verification code",
+        "otp",
+        "2fa",
+        "mfa",
+        "account locked",
+        "unusual activity",
+        "verify",
+        "confirm",
+        "security",
+        "unlock",
+        "update",
+        "login",
+        "sign in"
+    ]
+}

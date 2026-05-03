@@ -1,20 +1,3 @@
-<!--
-    Format: sms-<brand|authority>-<topic>-<variant>
-    Channel prefix: always sms-
-    Brand/authority: lowercase kebab slug of the sender being spoofed (e.g., purolator, canada-post, ontario-transport)
-    Topic: short descriptive slug like delivery-update, parking-ticket, account-login
-    Variant: optional numeric suffix (-01, -02, …) when multiple distinct samples exist for the same brand/topic
--->
-
-<!-- 
-    "id": "Stable kebab-case identifier for this rule entry.",
-    "title": "Human-readable label summarizing the scam.",
-    "pattern": "Snippet or phrase the matcher searches for.",
-    "message": "Representative scam message used for tests and reference.",
-    "tags": "Array of categorical keywords used for scoring/explanations.",
-    "notes": "Optional implementation notes (e.g., unicode obfuscation)."
--->
-
 ## 1.
 
 ### message
@@ -501,6 +484,20 @@ links: [
     }
 ]
 attachments: []
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## message
 ![alt text](file_1730842303883.jpg)

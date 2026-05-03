@@ -1,0 +1,40 @@
+{
+  "delivery": [
+    {
+      "slug": "canada-post",
+      "name": "Canada Post",
+      "aliases": ["poste canada", "canada post"],
+      "domains": ["canadapost.ca", "canadapost-postescanada.ca", "postescanada.ca"]
+    },
+    {
+      "slug": "purolator",
+      "name": "Purolator",
+      "aliases": ["puro"],
+      "domains": ["purolator.com", "purolator.ca"]
+    },
+    {
+      "slug": "fedex",
+      "name": "FedEx",
+      "aliases": [],
+      "domains": ["fedex.com", "fedex.ca"]
+    },
+    {
+      "slug": "ups",
+      "name": "UPS",
+      "aliases": ["myups", "united parcel service"],
+      "domains": ["ups.com", "ups.ca"]
+    },
+    {
+      "slug": "usps",
+      "name": "USPS",
+      "aliases": ["united states postal service", "us postal service"],
+      "domains": ["usps.com", "usps.gov"]
+    },
+    {
+      "slug": "dhl",
+      "name": "DHL",
+      "aliases": ["dhl express"],
+      "domains": ["dhl.com", "dhl.ca"]
+    }
+  ]
+}

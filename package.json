@@ -1,0 +1,14 @@
+{
+  "name": "prism",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n frontend,backend -c cyan,yellow \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload --port 8000",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "pytest backend/tests"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

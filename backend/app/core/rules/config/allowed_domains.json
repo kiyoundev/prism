@@ -1,0 +1,17 @@
+{
+  "delivery": [
+    "purolator.com",
+    "purolator.ca",
+    "canadapost-postescanada.ca",
+    "canada.ca"
+  ],
+  "banking": [
+    "rbc.com",
+    "td.com",
+    "scotiabank.com"
+  ],
+  "government": [
+    "cra-arc.gc.ca",
+    "canada.ca"
+  ]
+}
