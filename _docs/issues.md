@@ -26,24 +26,119 @@ All issues are AFK unless marked HITL (requires manual action outside the codeba
 
 ## Dependency graph
 
-```
-#5 (Supabase) → #6 (Railway), #9 (docker-compose), #10 (messages migration)
-  #10 → #11 (message_analysis migration) → #37 (ORM models) → #38 (schemas)
-    #38 → #40 (full POST /v1/score) → #41 (GET /v1/messages) → #42 (latest analysis)
-      #41 → #47 (/history), #42 → #48 (/messages/[id])
-#7 (Vercel) → #43 (proxy route) → #44 (/demo form) → #45 (ScoreCard) → #46 (explanation)
-#14 (normalizer), #15 (url_extractor), #16 (tokenizer) → #17 (fuzzy) → #18 (artifacts{})
-  #18 → #19 (brand detection) → #20 (keyword scoring) → #26 (rule_score aggregator)
-  #18 → #21 (url_checker TLD) → #22 (brand-domain mismatch)
-  #26 → #27 (Phase 1 stub) → #33 (Phase 2) → #35 (Phase 3) → #36 (dedup cache)
-    #35 → #39 (combiner) → #40 (full POST /v1/score)
-#23 (unicode_detector), #24 (pattern_matcher urgency) → #25 (financial/channel-shifting)
-#29 (UCI dataset), #30 (TF-IDF), #31 (sentiment) → #32 (classifier) → #33
-#34 (Anthropic client) → #35
+**Phase 0 — Preprocessing**
 
-Start immediately (no blockers): #12, #13, #14, #15, #16, #23, #24, #28, #29, #31, #34
-Critical path: #5 → #10 → #11 → #37 → #38 → #40 → #41 → #47
 ```
+#14 — normalizer.py
+#15 — url_extractor.py
+#16 — tokenizer.py: word tokens + n-grams
+  └── #17 — tokenizer.py: rapidfuzz fuzzy matching
+        └── #18 — extractor.py: artifacts{} bundle    [also needs #14, #15]
+```
+
+**Phase 1 — Rule Engine**
+
+```
+#18 — artifacts{} bundle (from Phase 0)
+  ├── #19 — category_extractor: brand detection
+  │     └── #20 — category_extractor: keyword scoring
+  ├── #21 — url_checker: allowlist/denylist/TLD
+  │     └── #22 — url_checker: brand-domain mismatch
+  └── #26 — rule_score aggregator                   [also needs #20, #22, #23, #25]
+        └── #27 — POST /v1/score Phase 1 stub
+
+#23 — unicode_detector.py                           [no deps — feeds into #26]
+#24 — pattern_matcher.py: urgency + authority
+  └── #25 — pattern_matcher.py: financial + channel-shifting [feeds into #26]
+#28 — X-API-Key middleware                          [no deps]
+```
+
+**Phase 2 — ML Classifier**
+
+```
+#29 — UCI SMS Spam Collection                       [HITL]
+  └── #30 — features.py: TF-IDF pipeline            [also needs #18]
+        └── #32 — classifier.py: train + serialize  [also needs #31]
+
+#31 — sentiment.py: NLTK signal                     [no deps — feeds into #32]
+
+#27 — Phase 1 stub (from Phase 1)
+  └── #33 — Integrate Phase 2                       [also needs #32]
+```
+
+**Phase 3 — Claude AI**
+> RAG context injection is v2 (out of scope for MVP). Phase 3 here is structured-prompt only — Claude receives all Phase 0–2 artifacts but no vector-retrieved examples.
+
+```
+#34 — client.py + prompts.py: Anthropic SDK + structured prompt  [no deps]
+  └── #35 — Integrate Phase 3                       [also needs #33]
+        └── #36 — SHA-256 dedup cache
+```
+
+**Combiner + Full API**
+
+```
+#35 — Phase 3 output
+  └── #39 — combiner.py                             [also needs #26, #33]
+        └── #40 — POST /v1/score full               [also needs #38]
+              ├── #41 — GET /v1/messages
+              │     ├── #42 — GET analysis/latest
+              │     │     └── #48 — /messages/[id]  [also needs #43]
+              │     └── #47 — /history page          [also needs #43]
+              └── #43 — Next.js proxy route          [also needs #7]
+                    └── #44 — /demo: SMS form
+                          └── #45 — /demo: ScoreCard
+                                └── #46 — /demo: Claude explanation panel
+```
+
+**Infrastructure**
+
+```
+#5 — Supabase: create project                    [HITL]
+  ├── #6 — Railway: create project               [HITL]
+  ├── #8 — .env.example files                    [also needs #6, #7]
+  ├── #9 — docker-compose.yml for local dev
+  └── #10 — Alembic: messages migration
+        └── #11 — Alembic: message_analysis migration
+              └── #37 — SQLAlchemy ORM models
+                    └── #38 — Pydantic schemas   [feeds into #40]
+```
+
+**Phase 2 ML prerequisites**
+
+```
+#29 — UCI SMS Spam Collection                    [HITL]
+  └── #30 — features.py: TF-IDF pipeline        [also needs #18]
+        └── #32 — classifier.py: train + serialize [also needs #31]
+              └── feeds into #33
+```
+
+**No-blocker starters**
+
+```
+#7  — Vercel: link frontend                      [HITL — feeds into #43]
+#12 — GitHub Actions CI
+#13 — Frontend: shadcn/ui + Lucide + base layout
+#23 — unicode_detector.py                        [feeds into #26]
+#24 — pattern_matcher.py: urgency + authority
+  └── #25 — pattern_matcher.py: financial + channel-shifting [feeds into #26]
+#28 — X-API-Key middleware
+#31 — sentiment.py: NLTK signal                  [feeds into #32]
+#34 — Anthropic client + prompts                 [feeds into #35]
+```
+
+**Testing**
+
+```
+#49 — pytest: Phase 0 unit tests                 [needs #14–#17]
+#50 — pytest: Phase 1 unit tests                 [needs #19–#26]
+#51 — pytest: Phase 2 unit tests                 [needs #30–#32]
+#52 — pytest: POST /v1/score integration test    [needs #40]
+  └── #53 — Playwright E2E: /demo                [also needs #44]
+```
+
+**Critical path:** `#5 → #10 → #11 → #37 → #38 → #40 → #41 → #47`  
+**Start immediately (no blockers):** `#12, #13, #14, #15, #16, #23, #24, #28, #29, #31, #34`
 
 ---
 
@@ -51,7 +146,7 @@ Critical path: #5 → #10 → #11 → #37 → #38 → #40 → #41 → #47
 
 ---
 
-## Issue #1 — Hotfixes: requirements.txt + Ruff/Prettier dev tooling ✅
+## [✅] Issue #1 — Hotfixes: requirements.txt + Ruff/Prettier dev tooling 
 
 **Type:** hotfix / AFK  
 **Estimate:** ~1.5 hrs  
@@ -76,7 +171,7 @@ Three grouped fixes shipped together: uncomment `unidecode==1.3.8` in `backend/r
 
 ---
 
-## Issue #5 — Supabase: create project, grab DATABASE_URL
+## [ ] Issue #5 — Supabase: create project, grab DATABASE_URL
 
 **Type:** chore / HITL  
 **Estimate:** ~30m  
@@ -88,13 +183,13 @@ Create the Supabase project that will serve as Prism's primary Postgres database
 
 ### Acceptance criteria
 
-- [ ] Supabase project created and accessible in the dashboard
-- [ ] `pgvector` extension enabled under Database → Extensions
-- [ ] `DATABASE_URL` (pooled connection string) captured and stored securely
+- [✅] Supabase project created and accessible in the dashboard
+- [✅] `pgvector` extension enabled under Database → Extensions
+- [✅] `DATABASE_URL` (pooled connection string) captured and stored securely
 
 ---
 
-## Issue #6 — Railway: create project, set env vars
+## [ ] Issue #6 — Railway: create project, set env vars
 
 **Type:** chore / HITL  
 **Estimate:** ~30m  
@@ -115,7 +210,7 @@ Variables to set: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `INTERNAL_API_KEY`.
 
 ---
 
-## Issue #7 — Vercel: link frontend project, set FASTAPI_URL
+## [ ] Issue #7 — Vercel: link frontend project, set FASTAPI_URL
 
 **Type:** chore / HITL  
 **Estimate:** ~30m  
@@ -133,7 +228,7 @@ Link the `frontend/` directory to a Vercel project. Set the `FASTAPI_URL` enviro
 
 ---
 
-## Issue #8 — `.env.example` files for backend and frontend
+## [ ] Issue #8 — `.env.example` files for backend and frontend
 
 **Type:** infra / AFK  
 **Estimate:** ~30m  
@@ -155,7 +250,30 @@ Create `.env.example` files in both `backend/` and `frontend/` documenting every
 
 ---
 
-## Issue #9 — `docker-compose.yml` for local dev
+## [ ] Issue #8.5 — Validate required env vars at startup
+
+**Type:** infra / AFK  
+**Estimate:** ~45m  
+**Blocked by:** #8
+
+### What to build
+
+Add backend and frontend environment validation so missing required variables fail fast during startup/build instead of causing runtime errors later. The backend should validate its Railway/local runtime variables when FastAPI starts. The frontend should validate only server-side Next.js variables used by the proxy route, without exposing secrets to browser code.
+
+Backend required variables: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `INTERNAL_API_KEY`.  
+Frontend required variables: `FASTAPI_URL`, `INTERNAL_API_KEY`.
+
+### Acceptance criteria
+
+- [ ] Backend validates `DATABASE_URL`, `ANTHROPIC_API_KEY`, and `INTERNAL_API_KEY` at startup with clear error messages
+- [ ] Frontend validates `FASTAPI_URL` and `INTERNAL_API_KEY` on the server side before proxy calls depend on them
+- [ ] Missing or empty env vars fail fast in local dev, Docker, Railway, and Vercel builds/previews
+- [ ] No secret values are logged or exposed to the browser
+- [ ] Validation stays in sync with `backend/.env.example` and `frontend/.env.example`
+
+---
+
+## [ ] Issue #9 — `docker-compose.yml` for local dev
 
 **Type:** infra / AFK  
 **Estimate:** ~1h  
@@ -175,7 +293,7 @@ A `docker-compose.yml` at the repo root that spins up FastAPI and a local Postgr
 
 ---
 
-## Issue #10 — Alembic init + `messages` table migration
+## [ ] Issue #10 — Alembic init + `messages` table migration
 
 **Type:** infra / AFK  
 **Estimate:** ~2h  
@@ -206,7 +324,7 @@ Initialize Alembic in `backend/` and write the first migration that creates the 
 
 ---
 
-## Issue #11 — `message_analysis` table migration
+## [ ] Issue #11 — `message_analysis` table migration
 
 **Type:** infra / AFK  
 **Estimate:** ~1h  
@@ -243,7 +361,7 @@ Second Alembic migration that creates the `message_analysis` table. This table s
 
 ---
 
-## Issue #12 — GitHub Actions CI: Ruff lint + pytest on PR
+## [ ] Issue #12 — GitHub Actions CI: Ruff lint + pytest on PR
 
 **Type:** ci / AFK  
 **Estimate:** ~1h  
@@ -264,7 +382,7 @@ A GitHub Actions workflow file (`.github/workflows/ci.yml`) that runs on every p
 
 ---
 
-## Issue #13 — Frontend: install shadcn/ui + Lucide React, base layout
+## [ ] Issue #13 — Frontend: install shadcn/ui + Lucide React, base layout
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -288,7 +406,7 @@ Install and configure shadcn/ui (built on Radix UI) and Lucide React icons in th
 
 ---
 
-## Issue #14 — `normalizer.py`: text normalization pipeline
+## [ ] Issue #14 — `normalizer.py`: text normalization pipeline
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -317,7 +435,7 @@ The function must be idempotent (running it twice produces the same result as ru
 
 ---
 
-## Issue #15 — `url_extractor.py`: extract URLs before normalization
+## [ ] Issue #15 — `url_extractor.py`: extract URLs before normalization
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -338,7 +456,7 @@ The function must be idempotent (running it twice produces the same result as ru
 
 ---
 
-## Issue #16 — `tokenizer.py`: word tokens + bi/tri-grams
+## [ ] Issue #16 — `tokenizer.py`: word tokens + bi/tri-grams
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -364,7 +482,7 @@ These outputs are consumed by both the brand/category extractor and the Phase 2 
 
 ---
 
-## Issue #17 — `tokenizer.py`: rapidfuzz fuzzy matching
+## [ ] Issue #17 — `tokenizer.py`: rapidfuzz fuzzy matching
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -384,7 +502,7 @@ Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], thre
 
 ---
 
-## Issue #18 — `extractor.py`: wire Phase 0 into `artifacts{}` bundle
+## [ ] Issue #18 — `extractor.py`: wire Phase 0 into `artifacts{}` bundle
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -417,7 +535,7 @@ Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], thre
 
 ---
 
-## Issue #19 — `category_extractor.py`: brand detection
+## [ ] Issue #19 — `category_extractor.py`: brand detection
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -440,7 +558,7 @@ Also check the extracted URLs: if any URL's registered domain matches a brand's 
 
 ---
 
-## Issue #20 — `category_extractor.py`: keyword scoring + resolution logic
+## [ ] Issue #20 — `category_extractor.py`: keyword scoring + resolution logic
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -466,7 +584,7 @@ Implement the keyword-based fallback in `category_extractor.py`. Load `category_
 
 ---
 
-## Issue #21 — `url_checker.py`: allowlist/denylist + suspicious TLD detection
+## [ ] Issue #21 — `url_checker.py`: allowlist/denylist + suspicious TLD detection
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -494,7 +612,7 @@ Emit rule signals as `(code, display_string)` tuples to be collected by the rule
 
 ---
 
-## Issue #22 — `url_checker.py`: brand-domain mismatch detection
+## [ ] Issue #22 — `url_checker.py`: brand-domain mismatch detection
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -514,7 +632,7 @@ Extend `url_checker.py` with brand-domain mismatch detection. If a brand was det
 
 ---
 
-## Issue #23 — `unicode_detector.py`: homoglyph + zero-width character detection
+## [ ] Issue #23 — `unicode_detector.py`: homoglyph + zero-width character detection
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -539,7 +657,7 @@ Emit a `homoglyph_detected` or `zero_width_detected` signal per type found.
 
 ---
 
-## Issue #24 — `pattern_matcher.py`: urgency + authority social engineering patterns
+## [ ] Issue #24 — `pattern_matcher.py`: urgency + authority social engineering patterns
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -565,7 +683,7 @@ Each match emits a `(code, display_string)` signal.
 
 ---
 
-## Issue #25 — `pattern_matcher.py`: financial structuring + channel-shifting rules
+## [ ] Issue #25 — `pattern_matcher.py`: financial structuring + channel-shifting rules
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -589,7 +707,7 @@ Extend `pattern_matcher.py` with two additional rule categories:
 
 ---
 
-## Issue #26 — `rule_score` aggregator + `rule_reasons[]` output
+## [ ] Issue #26 — `rule_score` aggregator + `rule_reasons[]` output
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -615,7 +733,7 @@ Signal weights live in a config file, not hardcoded in logic.
 
 ---
 
-## Issue #27 — FastAPI: `POST /v1/score` Phase 1-only stub
+## [ ] Issue #27 — FastAPI: `POST /v1/score` Phase 1-only stub
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -641,7 +759,7 @@ Wire Phase 0 + Phase 1 into a working FastAPI endpoint at `POST /v1/score`. This
 
 ---
 
-## Issue #28 — FastAPI: X-API-Key middleware on `/v1/*` routes
+## [ ] Issue #28 — FastAPI: X-API-Key middleware on `/v1/*` routes
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -665,7 +783,7 @@ FastAPI dependency or middleware that validates the `X-API-Key` request header o
 
 ---
 
-## Issue #29 — Download + preprocess UCI SMS Spam Collection into seed corpus
+## [ ] Issue #29 — Download + preprocess UCI SMS Spam Collection into seed corpus
 
 **Type:** chore / HITL  
 **Estimate:** ~2h  
@@ -690,7 +808,7 @@ Load both files into the `messages` table via `POST /v1/dataset/messages` (or di
 
 ---
 
-## Issue #30 — `features.py`: TF-IDF pipeline on Phase 0 tokens
+## [ ] Issue #30 — `features.py`: TF-IDF pipeline on Phase 0 tokens
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -710,7 +828,7 @@ Load both files into the `messages` table via `POST /v1/dataset/messages` (or di
 
 ---
 
-## Issue #31 — `sentiment.py`: NLTK SentimentIntensityAnalyzer signal
+## [ ] Issue #31 — `sentiment.py`: NLTK SentimentIntensityAnalyzer signal
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -731,7 +849,7 @@ NLTK `vader_lexicon` must be downloaded if not already present.
 
 ---
 
-## Issue #32 — `classifier.py`: train + serialize Naive Bayes model
+## [ ] Issue #32 — `classifier.py`: train + serialize Naive Bayes model
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -752,7 +870,7 @@ NLTK `vader_lexicon` must be downloaded if not already present.
 
 ---
 
-## Issue #33 — Integrate Phase 2 into FastAPI pipeline
+## [ ] Issue #33 — Integrate Phase 2 into FastAPI pipeline
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -776,7 +894,7 @@ Wire `MLClassifier.score()` into the scoring pipeline after Phase 1. The classif
 
 ---
 
-## Issue #34 — `client.py` + `prompts.py`: Anthropic SDK + structured prompt
+## [ ] Issue #34 — `client.py` + `prompts.py`: Anthropic SDK + structured prompt
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -799,7 +917,7 @@ Claude must never be called cold with just the raw SMS — all prior phase conte
 
 ---
 
-## Issue #35 — Integrate Phase 3 into pipeline after Phase 2
+## [ ] Issue #35 — Integrate Phase 3 into pipeline after Phase 2
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -819,7 +937,7 @@ Wire `ClaudeClient.score()` into the scoring pipeline after Phase 2. Claude rece
 
 ---
 
-## Issue #36 — SHA-256 dedup cache: skip Phase 3 for repeated messages
+## [ ] Issue #36 — SHA-256 dedup cache: skip Phase 3 for repeated messages
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -843,7 +961,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 
 ---
 
-## Issue #37 — SQLAlchemy ORM models: `Message` + `Analysis`
+## [ ] Issue #37 — SQLAlchemy ORM models: `Message` + `Analysis`
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -864,7 +982,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 
 ---
 
-## Issue #38 — Pydantic schemas: `MessageCreate`, `ScoringResult`, `AnalysisResult`
+## [ ] Issue #38 — Pydantic schemas: `MessageCreate`, `ScoringResult`, `AnalysisResult`
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -889,7 +1007,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 
 ---
 
-## Issue #39 — `combiner.py`: weighted `final_score` calculation
+## [ ] Issue #39 — `combiner.py`: weighted `final_score` calculation
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -910,7 +1028,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 
 ---
 
-## Issue #40 — Complete `POST /v1/score`: full pipeline + persist
+## [ ] Issue #40 — Complete `POST /v1/score`: full pipeline + persist
 
 **Type:** feat / AFK  
 **Estimate:** ~3h  
@@ -931,7 +1049,7 @@ Wire the full four-phase pipeline into `POST /v1/score` and add database persist
 
 ---
 
-## Issue #41 — `GET /v1/messages` + `GET /v1/messages/{id}` endpoints
+## [ ] Issue #41 — `GET /v1/messages` + `GET /v1/messages/{id}` endpoints
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -957,7 +1075,7 @@ Both require `X-API-Key`.
 
 ---
 
-## Issue #42 — `GET /v1/messages/{id}/analysis/latest` endpoint
+## [ ] Issue #42 — `GET /v1/messages/{id}/analysis/latest` endpoint
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -980,7 +1098,7 @@ Both require `X-API-Key`.
 
 ---
 
-## Issue #43 — Next.js server-side proxy route → FastAPI `POST /v1/score`
+## [ ] Issue #43 — Next.js server-side proxy route → FastAPI `POST /v1/score`
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -1000,7 +1118,7 @@ A Next.js App Router route handler at `POST /api/score` that forwards requests t
 
 ---
 
-## Issue #44 — `/demo` page: SMS form + loading state
+## [ ] Issue #44 — `/demo` page: SMS form + loading state
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -1021,7 +1139,7 @@ A Next.js App Router route handler at `POST /api/score` that forwards requests t
 
 ---
 
-## Issue #45 — `/demo` page: `ScoreCard` + rule reasons display
+## [ ] Issue #45 — `/demo` page: `ScoreCard` + rule reasons display
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -1044,7 +1162,7 @@ A Next.js App Router route handler at `POST /api/score` that forwards requests t
 
 ---
 
-## Issue #46 — `/demo` page: Claude explanation panel
+## [ ] Issue #46 — `/demo` page: Claude explanation panel
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -1063,7 +1181,7 @@ A panel below the `ScoreCard` that displays `ai_explanation` — Claude's plain-
 
 ---
 
-## Issue #47 — `/history` page: submission list with `final_score`
+## [ ] Issue #47 — `/history` page: submission list with `final_score`
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -1083,7 +1201,7 @@ A panel below the `ScoreCard` that displays `ai_explanation` — Claude's plain-
 
 ---
 
-## Issue #48 — `/messages/[id]`: full analysis detail view
+## [ ] Issue #48 — `/messages/[id]`: full analysis detail view
 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
@@ -1116,7 +1234,7 @@ Returns a Next.js 404 page for unknown IDs.
 
 ---
 
-## Issue #49 — pytest: Phase 0 unit tests
+## [ ] Issue #49 — pytest: Phase 0 unit tests
 
 **Type:** test / AFK  
 **Estimate:** ~2h  
@@ -1141,7 +1259,7 @@ Unit tests in `backend/tests/test_preprocessing.py` for all Phase 0 modules. Tes
 
 ---
 
-## Issue #50 — pytest: Phase 1 unit tests
+## [ ] Issue #50 — pytest: Phase 1 unit tests
 
 **Type:** test / AFK  
 **Estimate:** ~2h  
@@ -1163,7 +1281,7 @@ Unit tests in `backend/tests/test_rules.py` for all Phase 1 rule modules. Each r
 
 ---
 
-## Issue #51 — pytest: Phase 2 unit tests
+## [ ] Issue #51 — pytest: Phase 2 unit tests
 
 **Type:** test / AFK  
 **Estimate:** ~1h  
@@ -1185,7 +1303,7 @@ Unit tests in `backend/tests/test_ml.py` for Phase 2 modules. The classifier tes
 
 ---
 
-## Issue #52 — pytest: `POST /v1/score` integration test (real DB, no mocks)
+## [ ] Issue #52 — pytest: `POST /v1/score` integration test (real DB, no mocks)
 
 **Type:** test / AFK  
 **Estimate:** ~2h  
@@ -1206,7 +1324,7 @@ Integration test in `backend/tests/test_api.py` that submits a known scam SMS to
 
 ---
 
-## Issue #53 — Playwright E2E: `/demo` submission flow
+## [ ] Issue #53 — Playwright E2E: `/demo` submission flow
 
 **Type:** test / AFK  
 **Estimate:** ~2h  
