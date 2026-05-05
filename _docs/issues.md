@@ -171,7 +171,7 @@ Three grouped fixes shipped together: uncomment `unidecode==1.3.8` in `backend/r
 
 ---
 
-## [ ] Issue #5 — Supabase: create project, grab DATABASE_URL
+## [✅] Issue #5 — Supabase: create project, grab DATABASE_URL
 
 **Type:** chore / HITL  
 **Estimate:** ~30m  
@@ -183,13 +183,13 @@ Create the Supabase project that will serve as Prism's primary Postgres database
 
 ### Acceptance criteria
 
-- [✅] Supabase project created and accessible in the dashboard
-- [✅] `pgvector` extension enabled under Database → Extensions
-- [✅] `DATABASE_URL` (pooled connection string) captured and stored securely
+- [x] Supabase project created and accessible in the dashboard
+- [x] `pgvector` extension enabled under Database → Extensions
+- [x] `DATABASE_URL` (pooled connection string) captured and stored securely
 
 ---
 
-## [ ] Issue #6 — Railway: create project, set env vars
+## [✅] Issue #6 — Railway: create project, set env vars
 
 **Type:** chore / HITL  
 **Estimate:** ~30m  
@@ -203,10 +203,11 @@ Variables to set: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `INTERNAL_API_KEY`.
 
 ### Acceptance criteria
 
-- [ ] Railway project created with a FastAPI service
-- [ ] `DATABASE_URL` set to the Supabase pooled connection string from #5
-- [ ] `ANTHROPIC_API_KEY` set to a valid Anthropic API key
-- [ ] `INTERNAL_API_KEY` set to a generated secret used by the X-API-Key middleware
+- [x] Railway project created with a FastAPI service
+- [x] `DATABASE_URL` set to the Supabase pooled connection string from #5
+- [x] `ANTHROPIC_API_KEY` set to a valid Anthropic API key
+- [x] `INTERNAL_API_KEY` set to a generated secret used by the X-API-Key middleware
+- [x] Backend deployment pins Python 3.12 with `backend/runtime.txt`
 
 ---
 
@@ -289,6 +290,7 @@ A `docker-compose.yml` at the repo root that spins up FastAPI and a local Postgr
 - [ ] FastAPI is accessible at `http://localhost:8000`
 - [ ] FastAPI reloads on file changes in `backend/app/`
 - [ ] Alembic migrations can be run against the local Postgres container via `docker-compose exec`
+- [ ] FastAPI container uses the same Python version as Railway runtime
 - [ ] `docker-compose down` cleanly stops all services
 
 ---

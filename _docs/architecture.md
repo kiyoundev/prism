@@ -70,7 +70,91 @@ The frontend never touches the database directly. All scoring logic, ML inferenc
 
 ---
 
-## 3. Scoring Pipeline — Sequential Data Flow
+## 3. API Boundary Diagram
+
+Prism has two API layers. The browser calls the Next.js API routes on the same Vercel origin. Those route handlers run on the server, attach the private internal API key, and forward the request to FastAPI on Railway. FastAPI owns scoring, persistence, and all database access.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                         Browser                              │
+│                                                              │
+│  User submits SMS from /demo                                 │
+│                                                              │
+│  fetch('/api/score', {                                       │
+│    method: 'POST',                                           │
+│    body: { text: '...' }                                     │
+│  })                                                          │
+│                                                              │
+│  Browser can see: /api/score                                 │
+│  Browser cannot see: INTERNAL_API_KEY, DATABASE_URL          │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ Same-origin HTTPS
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│                  Next.js Frontend (Vercel)                   │
+│                                                              │
+│  Route handler: POST /api/score                              │
+│                                                              │
+│  Reads server-only env vars:                                 │
+│  - FASTAPI_URL                                               │
+│  - INTERNAL_API_KEY                                          │
+│                                                              │
+│  Forwards request to FastAPI:                                │
+│                                                              │
+│  POST ${FASTAPI_URL}/v1/score                                │
+│  X-API-Key: ${INTERNAL_API_KEY}                              │
+│  Body: { text: '...' }                                       │
+│                                                              │
+│  Returns FastAPI response back to browser                    │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ Server-to-server HTTPS
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    FastAPI Backend (Railway)                 │
+│                                                              │
+│  Endpoint: POST /v1/score                                    │
+│                                                              │
+│  Validates:                                                  │
+│  - X-API-Key matches INTERNAL_API_KEY                        │
+│                                                              │
+│  Reads server-only env vars:                                 │
+│  - DATABASE_URL                                              │
+│  - ANTHROPIC_API_KEY                                         │
+│  - INTERNAL_API_KEY                                          │
+│                                                              │
+│  Runs scoring pipeline:                                      │
+│  Phase 0 → Phase 1 → Phase 2 → Phase 3 → Combiner            │
+│                                                              │
+│  Calls Claude with ANTHROPIC_API_KEY                         │
+│  Persists results through DATABASE_URL                       │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ SQL over pooled connection
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    Supabase Postgres                         │
+│                                                              │
+│  DATABASE_URL uses transaction pooler, port 6543             │
+│                                                              │
+│  Tables:                                                     │
+│  - messages                                                  │
+│  - message_analysis                                          │
+│                                                              │
+│  pgvector enabled for future RAG retrieval                   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### API boundary rules
+
+- Browser code calls only same-origin Next.js routes like `/api/score`.
+- Browser code never receives `INTERNAL_API_KEY`, `DATABASE_URL`, or `ANTHROPIC_API_KEY`.
+- Next.js route handlers can read `FASTAPI_URL` and `INTERNAL_API_KEY` because they run server-side.
+- FastAPI validates protected `/v1/*` requests using the `X-API-Key` header.
+- FastAPI is the only service that connects to Supabase or calls Anthropic.
+- Supabase is never accessed directly from the browser or frontend client components.
+
+---
+
+## 4. Scoring Pipeline — Sequential Data Flow
 
 The pipeline is **sequential, not parallel**. Each phase enriches the context passed to the next.
 
@@ -110,7 +194,7 @@ Weights start equal; tune after evaluation data accumulates.
 
 ---
 
-## 4. Frontend Architecture
+## 5. Frontend Architecture
 
 ### Pages
 | Route | Purpose |
@@ -134,7 +218,7 @@ Weights start equal; tune after evaluation data accumulates.
 
 ---
 
-## 5. Backend Architecture
+## 6. Backend Architecture
 
 ### Directory layout (FastAPI)
 ```
