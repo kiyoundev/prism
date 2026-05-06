@@ -225,11 +225,11 @@ Link the `frontend/` directory to a Vercel project. Set the `FASTAPI_URL` enviro
 
 - [x] Vercel project created and linked to the `frontend/` directory in the monorepo
 - [x] `FASTAPI_URL` environment variable set to the Railway backend URL
-- [] A preview deployment completes without build errors
+- [x] A preview deployment completes without build errors
 
 ---
 
-## [ ] Issue #8 — `.env.example` files for backend and frontend
+## [✅] Issue #8 — `.env.example` files for backend and frontend
 
 **Type:** infra / AFK  
 **Estimate:** ~30m  
@@ -244,10 +244,10 @@ Create `.env.example` files in both `backend/` and `frontend/` documenting every
 
 ### Acceptance criteria
 
-- [ ] `backend/.env.example` exists and documents all required backend env vars with placeholder values
-- [ ] `frontend/.env.example` exists and documents all required frontend env vars with placeholder values
-- [ ] No real secrets are present in either file
-- [ ] Both files are committed; `.env` is in `.gitignore`
+- [x] `backend/.env.example` exists and documents all required backend env vars with placeholder values
+- [x] `frontend/.env.example` exists and documents all required frontend env vars with placeholder values
+- [x] No real secrets are present in either file
+- [x] Both files are committed; `.env` is in `.gitignore`
 
 ---
 
