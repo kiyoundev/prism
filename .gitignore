@@ -15,6 +15,9 @@ backend/venv
 # testing
 /coverage
 .pytest_cache/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
 
 # next.js
 /.next/

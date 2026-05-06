@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: prism
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend/app:/app/app
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/prism
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-placeholder}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-localdev}
+      ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

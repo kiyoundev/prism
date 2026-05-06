@@ -191,3 +191,25 @@ Terminal 2: cd frontend && npm run dev
 `frontend/.env.local` points `FASTAPI_URL` at `localhost:8000`. You develop and test the full stack locally, then push to the remote repo when confident. Railway picks up the push automatically and deploys.
 
 Issue #9 (docker-compose) formalizes this: `docker-compose up` replaces the two terminals and adds a local Postgres so you're not dependent on Supabase for every dev session.
+
+---
+
+## When to use docker-compose vs. running services natively
+
+**Question:** Should docker-compose auto-launch when working on Prism? Does `npm run dev` boot Docker?
+
+**Answer:**
+
+No — docker-compose is intentional, not automatic. `npm run dev` at the root starts Next.js and uvicorn natively without Docker.
+
+The reason: `docker compose up` builds the image on first run (takes a minute) and keeps Postgres + FastAPI running in the background. You don't always need that — working on frontend only doesn't require a database.
+
+**Three workflows depending on what you're working on:**
+
+| Scenario | Command |
+|---|---|
+| Frontend only | `npm run dev:frontend` |
+| Backend only (no DB needed) | `npm run dev:backend` |
+| Full stack with database | `docker compose up` + `npm run dev:frontend` |
+
+Auto-launching Docker on system startup would waste memory and CPU when you're not working on Prism. Keep it manual.

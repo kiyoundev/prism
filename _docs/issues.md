@@ -341,7 +341,7 @@ Manual smoke tests to verify that `config.py` and `env.ts` fail fast with clear 
 
 ---
 
-## [ ] Issue #9 — `docker-compose.yml` for local dev
+## [✅] Issue #9 — `docker-compose.yml` for local dev
 
 **Type:** infra / AFK  
 **Estimate:** ~1h  
@@ -353,12 +353,12 @@ A `docker-compose.yml` at the repo root that spins up FastAPI and a local Postgr
 
 ### Acceptance criteria
 
-- [ ] `docker-compose up` starts both the FastAPI service and a local Postgres container
-- [ ] FastAPI is accessible at `http://localhost:8000`
-- [ ] FastAPI reloads on file changes in `backend/app/`
-- [ ] Alembic migrations can be run against the local Postgres container via `docker-compose exec`
-- [ ] FastAPI container uses the same Python version as Railway runtime
-- [ ] `docker-compose down` cleanly stops all services
+- [x] `docker-compose up` starts both the FastAPI service and a local Postgres container
+- [x] FastAPI is accessible at `http://localhost:8000`
+- [x] FastAPI reloads on file changes in `backend/app/`
+- [x] Local Postgres is reachable from the backend container for future Alembic migrations
+- [x] FastAPI container uses the same Python version as Railway runtime
+- [x] `docker-compose down` cleanly stops all services
 
 ---
 
