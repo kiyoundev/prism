@@ -211,7 +211,7 @@ Variables to set: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `INTERNAL_API_KEY`.
 
 ---
 
-## [ ] Issue #7 — Vercel: link frontend project, set FASTAPI_URL
+## [✅] Issue #7 — Vercel: link frontend project, set FASTAPI_URL
 
 **Type:** chore / HITL  
 **Estimate:** ~30m  
@@ -223,9 +223,9 @@ Link the `frontend/` directory to a Vercel project. Set the `FASTAPI_URL` enviro
 
 ### Acceptance criteria
 
-- [ ] Vercel project created and linked to the `frontend/` directory in the monorepo
-- [ ] `FASTAPI_URL` environment variable set to the Railway backend URL
-- [ ] A preview deployment completes without build errors
+- [x] Vercel project created and linked to the `frontend/` directory in the monorepo
+- [x] `FASTAPI_URL` environment variable set to the Railway backend URL
+- [] A preview deployment completes without build errors
 
 ---
 
