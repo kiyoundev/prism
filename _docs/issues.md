@@ -130,11 +130,16 @@ All issues are AFK unless marked HITL (requires manual action outside the codeba
 **Testing**
 
 ```
-#49 — pytest: Phase 0 unit tests                 [needs #14–#17]
-#50 — pytest: Phase 1 unit tests                 [needs #19–#26]
-#51 — pytest: Phase 2 unit tests                 [needs #30–#32]
-#52 — pytest: POST /v1/score integration test    [needs #40]
-  └── #53 — Playwright E2E: /demo                [also needs #44]
+#6.5  — Railway deployment smoke test            [needs #6]         HITL
+#7.5  — Vercel deployment smoke test             [needs #7]         HITL
+#8.6  — Env var validation smoke test            [needs #8.5]       HITL
+#49   — pytest: Phase 0 unit tests               [needs #14–#17]
+#50   — pytest: Phase 1 unit tests               [needs #19–#26]
+#51   — pytest: Phase 2 unit tests               [needs #30–#32]
+#52   — pytest: POST /v1/score integration test  [needs #40]
+  └── #52.5 — pytest: GET endpoints              [also needs #41, #42]
+#53   — Playwright E2E: /demo                    [needs #44, #52]
+#54   — pytest: Phase 3 unit tests               [needs #34, #35, #36]
 ```
 
 **Critical path:** `#5 → #10 → #11 → #37 → #38 → #40 → #41 → #47`  
@@ -211,6 +216,25 @@ Variables to set: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `INTERNAL_API_KEY`.
 
 ---
 
+## [ ] Issue #6.5 — Railway deployment smoke test
+
+**Type:** test / HITL  
+**Estimate:** ~15m  
+**Blocked by:** #6
+
+### What to build
+
+Manual smoke test to verify the Railway FastAPI deployment is live, healthy, and correctly configured. Run from a terminal against the live Railway URL — no code changes needed.
+
+### Acceptance criteria
+
+- [ ] `GET https://<railway-url>/health` returns HTTP 200
+- [ ] `POST /v1/score` with correct `X-API-Key` header and `{"text": "test"}` returns HTTP 200 with a `rule_score` field
+- [ ] `POST /v1/score` with missing `X-API-Key` returns HTTP 401
+- [ ] Railway deployment logs show no startup errors or missing env var warnings
+
+---
+
 ## [✅] Issue #7 — Vercel: link frontend project, set FASTAPI_URL
 
 **Type:** chore / HITL  
@@ -226,6 +250,25 @@ Link the `frontend/` directory to a Vercel project. Set the `FASTAPI_URL` enviro
 - [x] Vercel project created and linked to the `frontend/` directory in the monorepo
 - [x] `FASTAPI_URL` environment variable set to the Railway backend URL
 - [x] A preview deployment completes without build errors
+
+---
+
+## [ ] Issue #7.5 — Vercel deployment smoke test
+
+**Type:** test / HITL  
+**Estimate:** ~15m  
+**Blocked by:** #7
+
+### What to build
+
+Manual smoke test to verify the Vercel Next.js deployment is live and the frontend shell loads correctly. Run from a browser against the deployed Vercel URL.
+
+### Acceptance criteria
+
+- [ ] Deployed Vercel URL returns HTTP 200
+- [ ] `/demo` page loads without JavaScript console errors
+- [ ] `/demo` page shows the SMS input form (not a blank page or error boundary)
+- [ ] `next build` output in Vercel deployment logs shows 0 errors
 
 ---
 
@@ -271,6 +314,30 @@ Frontend required variables: `FASTAPI_URL`, `INTERNAL_API_KEY`.
 - [x] Missing or empty env vars fail fast in local dev, Docker, Railway, and Vercel builds/previews
 - [x] No secret values are logged or exposed to the browser
 - [x] Validation stays in sync with `backend/.env.example` and `frontend/.env.example`
+
+---
+
+## [ ] Issue #8.6 — Smoke test: env var validation on startup
+
+**Type:** test / AFK  
+**Estimate:** ~30m  
+**Blocked by:** #8.5
+
+### What to build
+
+Manual smoke tests to verify that `config.py` and `env.ts` fail fast with clear messages when required env vars are missing. No automated test framework needed — these are one-time verification steps run locally.
+
+**Backend:** Start FastAPI with a missing env var and confirm it exits immediately with a readable error.  
+**Frontend:** Start Next.js dev server without a required var and confirm the first request to `/api/score` throws a clear error, not a cryptic `undefined`.
+
+### Acceptance criteria
+
+- [ ] `DATABASE_URL` unset → FastAPI exits immediately with `Missing required environment variable: DATABASE_URL`
+- [ ] `ANTHROPIC_API_KEY` unset → same fast exit
+- [ ] `INTERNAL_API_KEY` unset → same fast exit
+- [ ] `FASTAPI_URL` unset → first server-side request throws `Missing required environment variable: FASTAPI_URL`
+- [ ] `INTERNAL_API_KEY` unset on frontend → same clear error
+- [ ] No secret values appear in any error output
 
 ---
 
@@ -1326,6 +1393,35 @@ Integration test in `backend/tests/test_api.py` that submits a known scam SMS to
 
 ---
 
+## [ ] Issue #52.5 — pytest: GET `/v1/messages` + analysis endpoint tests
+
+**Type:** test / AFK  
+**Estimate:** ~2h  
+**Blocked by:** #41, #42, #52
+
+### What to build
+
+Integration tests in `backend/tests/test_api.py` (same file as #52) for the three GET read endpoints. Uses the same real test database fixture established in #52. No mocking.
+
+**Coverage targets:**
+- `GET /v1/messages`: returns list newest-first; `?source=` filter works; `?limit=` respected; cursor pagination returns correct next page; requires `X-API-Key`
+- `GET /v1/messages/{id}`: returns correct message + latest analysis; unknown ID returns HTTP 404
+- `GET /v1/messages/{id}/analysis/latest`: returns most recent analysis row by `created_at`; message with no analysis rows returns HTTP 404; unknown `message_id` returns HTTP 404
+
+### Acceptance criteria
+
+- [ ] `GET /v1/messages` returns messages ordered by `created_at DESC`
+- [ ] `?source=user_submitted` filters out seed messages
+- [ ] `?limit=2` returns at most 2 results with a cursor for the next page
+- [ ] `GET /v1/messages/{id}` for a seeded message returns HTTP 200 with the correct `message_id`
+- [ ] `GET /v1/messages/{id}` for an unknown UUID returns HTTP 404
+- [ ] `GET /v1/messages/{id}/analysis/latest` returns the most recent analysis row (verified by `created_at`)
+- [ ] `GET /v1/messages/{id}/analysis/latest` for a message with no analysis rows returns HTTP 404
+- [ ] All three endpoints return HTTP 401 without `X-API-Key`
+- [ ] All tests pass with `pytest backend/tests/test_api.py`
+
+---
+
 ## [ ] Issue #53 — Playwright E2E: `/demo` submission flow
 
 **Type:** test / AFK  
@@ -1344,3 +1440,29 @@ Playwright end-to-end test that exercises the `/demo` page in a real browser aga
 - [ ] At least one rule reason is listed
 - [ ] No JavaScript console errors during the flow
 - [ ] Test runs with `npx playwright test` against the local dev stack
+
+---
+
+## [ ] Issue #54 — pytest: Phase 3 unit tests
+
+**Type:** test / AFK  
+**Estimate:** ~2h  
+**Blocked by:** #34, #35, #36
+
+### What to build
+
+Unit tests in `backend/tests/test_ai.py` for all Phase 3 modules: the prompt builder, the client wrapper, and the SHA-256 dedup cache. The Anthropic SDK client is stubbed — no real API calls are made.
+
+**Coverage targets:**
+- `prompts.py`: `build_prompt()` includes all four required context blocks (SMS text, Phase 0 artifacts, Phase 1 `rule_reasons`, Phase 2 `ml_output`)
+- `client.py`: `score()` returns a dict with `ai_score` in `[0, 1]` and a non-empty `explanation` string (stubbed client)
+- Dedup cache (#36): submitting the same text twice results in exactly one Claude API call; the second call returns the cached result; different texts each trigger their own call; cache key is SHA-256 of the raw pre-normalization text
+
+### Acceptance criteria
+
+- [ ] `build_prompt` test asserts all four context blocks are present in the returned string
+- [ ] `score()` test with a stubbed Anthropic client returns `{ "ai_score": float, "explanation": str }` with correct types
+- [ ] Dedup cache: mock confirms call count is 1 after two identical submissions
+- [ ] Dedup cache: mock confirms call count is 2 after two different submissions
+- [ ] Cache key is SHA-256 of raw (pre-normalization) text — verified by submitting two texts that normalize to the same string but differ in raw form (e.g., one with a homoglyph)
+- [ ] All tests pass with `pytest backend/tests/test_ai.py`
