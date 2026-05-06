@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI
+from app.config import DATABASE_URL, ANTHROPIC_API_KEY, INTERNAL_API_KEY  # noqa: F401 — validates env vars at startup
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()

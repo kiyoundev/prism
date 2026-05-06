@@ -251,7 +251,7 @@ Create `.env.example` files in both `backend/` and `frontend/` documenting every
 
 ---
 
-## [ ] Issue #8.5 — Validate required env vars at startup
+## [✅] Issue #8.5 — Validate required env vars at startup
 
 **Type:** infra / AFK  
 **Estimate:** ~45m  
@@ -266,11 +266,11 @@ Frontend required variables: `FASTAPI_URL`, `INTERNAL_API_KEY`.
 
 ### Acceptance criteria
 
-- [ ] Backend validates `DATABASE_URL`, `ANTHROPIC_API_KEY`, and `INTERNAL_API_KEY` at startup with clear error messages
-- [ ] Frontend validates `FASTAPI_URL` and `INTERNAL_API_KEY` on the server side before proxy calls depend on them
-- [ ] Missing or empty env vars fail fast in local dev, Docker, Railway, and Vercel builds/previews
-- [ ] No secret values are logged or exposed to the browser
-- [ ] Validation stays in sync with `backend/.env.example` and `frontend/.env.example`
+- [x] Backend validates `DATABASE_URL`, `ANTHROPIC_API_KEY`, and `INTERNAL_API_KEY` at startup with clear error messages
+- [x] Frontend validates `FASTAPI_URL` and `INTERNAL_API_KEY` on the server side before proxy calls depend on them
+- [x] Missing or empty env vars fail fast in local dev, Docker, Railway, and Vercel builds/previews
+- [x] No secret values are logged or exposed to the browser
+- [x] Validation stays in sync with `backend/.env.example` and `frontend/.env.example`
 
 ---
 
