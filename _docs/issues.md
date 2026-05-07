@@ -397,7 +397,7 @@ Initialize Alembic in `backend/` and write the first migration that creates the 
 
 ---
 
-## [ ] Issue #11 — `message_analysis` table migration
+## [✅] Issue #11 — `message_analysis` table migration
 
 **Type:** infra / AFK  
 **Estimate:** ~1h  
@@ -425,16 +425,16 @@ Second Alembic migration that creates the `message_analysis` table. This table s
 
 ### Acceptance criteria
 
-- [ ] Second migration file created under `alembic/versions/`
-- [ ] `alembic upgrade head` applies cleanly; `message_analysis` table exists with all columns and constraints
-- [ ] Foreign key to `messages(id)` is enforced: inserting a row with a non-existent `message_id` raises an error
-- [ ] ON DELETE CASCADE: deleting a `messages` row cascades to its `message_analysis` rows
-- [ ] Both indexes present
-- [ ] `alembic downgrade -1` reverses cleanly without touching the `messages` table
+- [x] Second migration file created under `alembic/versions/`
+- [x] `alembic upgrade head` applies cleanly; `message_analysis` table exists with all columns and constraints
+- [x] Foreign key to `messages(id)` is enforced: inserting a row with a non-existent `message_id` raises an error
+- [x] ON DELETE CASCADE: deleting a `messages` row cascades to its `message_analysis` rows
+- [x] Both indexes present
+- [x] `alembic downgrade -1` reverses cleanly without touching the `messages` table
 
 ---
 
-## [ ] Issue #12 — GitHub Actions CI: Ruff lint + pytest on PR
+## [❌] *CLOSED* Issue #12 — GitHub Actions CI: Ruff lint + pytest on PR 
 
 **Type:** ci / AFK  
 **Estimate:** ~1h  
@@ -455,7 +455,7 @@ A GitHub Actions workflow file (`.github/workflows/ci.yml`) that runs on every p
 
 ---
 
-## [ ] Issue #13 — Frontend: install shadcn/ui + Lucide React, base layout
+## [⚠️] Issue #13 — Frontend: install shadcn/ui + Lucide React, base layout
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
