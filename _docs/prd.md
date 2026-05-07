@@ -197,7 +197,7 @@ The final score is a weighted combination of all three phase scores. Every submi
 ## Further Notes
 
 - The `category` field on `messages` is set by Phase 0 extraction and written at persist time — it reflects the Phase 0 classification outcome, not a user-provided label.
-- `model_version` in `message_analysis` should be a string that identifies the pipeline build (e.g., a git SHA or a manually bumped semver). This enables future comparison across model iterations.
+- `model_version` in `message_analysis` is a git SHA set via the `MODEL_VERSION` env var at deploy time; use `"dev"` for local runs. Automatically unique — no manual bumping needed during frequent tuning iterations.
 - The Phase 3 dedup cache (SHA-256 → cached result) lives in memory for MVP. In v2, move it to Redis or Supabase for durability across restarts.
 - `pgvector` is enabled on Supabase from day one so that v2 RAG requires no infrastructure change — only a new migration for the `message_embeddings` table.
 - Supabase Studio is the primary tool for manually curating and reviewing seed data; Railway hosts FastAPI with all DB credentials — Supabase RLS is enforced as a secondary layer.

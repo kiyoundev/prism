@@ -362,7 +362,7 @@ A `docker-compose.yml` at the repo root that spins up FastAPI and a local Postgr
 
 ---
 
-## [ ] Issue #10 — Alembic init + `messages` table migration
+## [✅] Issue #10 — Alembic init + `messages` table migration
 
 **Type:** infra / AFK  
 **Estimate:** ~2h  
@@ -389,11 +389,11 @@ Initialize Alembic in `backend/` and write the first migration that creates the 
 
 ### Acceptance criteria
 
-- [ ] `alembic init` run; `alembic.ini` and `alembic/env.py` configured with `DATABASE_URL`
-- [ ] First migration file created under `alembic/versions/`
-- [ ] `alembic upgrade head` applies cleanly against both local Postgres and Supabase
-- [ ] `messages` table exists with all columns, constraints, and indexes as specified
-- [ ] `alembic downgrade -1` reverses the migration cleanly
+- [x] `alembic init` run; `alembic.ini` and `alembic/env.py` configured with `DATABASE_URL`
+- [x] First migration file created under `alembic/versions/`
+- [x] `alembic upgrade head` applies cleanly against both local Postgres and Supabase
+- [x] `messages` table exists with all columns, constraints, and indexes as specified
+- [x] `alembic downgrade -1` reverses the migration cleanly
 
 ---
 
@@ -410,15 +410,15 @@ Second Alembic migration that creates the `message_analysis` table. This table s
 **Schema:**
 - `id`: UUID PK, `gen_random_uuid()`
 - `message_id`: UUID NOT NULL REFERENCES `messages(id)` ON DELETE CASCADE
-- `rule_score`: NUMERIC NOT NULL
-- `rule_reasons`: JSONB NOT NULL
-- `ml_score`: NUMERIC NULL
+- `rule_score`: NUMERIC NOT NULL CHECK (0–1)
+- `rule_reasons`: JSONB NOT NULL — fixed-key object, all Phase 1 signal scores present (zero if not fired)
+- `ml_score`: NUMERIC NULL CHECK (0–1) — NULL if classifier not yet trained
 - `ml_details`: JSONB NULL
-- `ai_score`: NUMERIC NULL
-- `ai_explanation`: TEXT NULL
-- `final_score`: NUMERIC NOT NULL
-- `model_version`: TEXT NOT NULL
-- `runtime_flags`: JSONB NULL
+- `ai_score`: NUMERIC NOT NULL CHECK (0–1) — Phase 3 always runs; fail-fast if Claude unavailable
+- `ai_explanation`: TEXT NOT NULL — always produced alongside `ai_score`
+- `final_score`: NUMERIC NOT NULL CHECK (0–1)
+- `model_version`: TEXT NOT NULL — git SHA from `MODEL_VERSION` env var; `"dev"` for local
+- `runtime_flags`: JSONB NOT NULL — combiner weights: `{"rule_weight": float, "ml_weight": float, "ai_weight": float}`
 - `created_at`: TIMESTAMPTZ NOT NULL DEFAULT now()
 
 **Indexes:** `(message_id, created_at DESC)`, `(model_version)`
