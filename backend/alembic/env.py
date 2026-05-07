@@ -1,9 +1,13 @@
 from logging.config import fileConfig
 
 from alembic import context
-from app.config import DATABASE_URL
-from app.models.base import Base
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
+
+load_dotenv()
+
+from app.config import DATABASE_URL  # noqa: E402 — must come after load_dotenv()
+from app.models.base import Base  # noqa: E402
 
 config = context.config
 
