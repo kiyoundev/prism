@@ -383,6 +383,10 @@ Initialize Alembic in `backend/` and write the first migration that creates the 
 
 **Indexes:** `(source)`, `(label)`, `(created_at DESC)`
 
+**Migration naming convention:** `YYYYMMDD_{rev}_{slug}.py` — date-prefixed for chronological filesystem ordering, hex rev ID for Alembic chaining. Configured via `file_template` in `alembic.ini`.
+
+**SQLAlchemy note:** ORM column uses `metadata_` (Python attribute) mapped to `"metadata"` (SQL column name) to avoid shadowing `DeclarativeBase.metadata`.
+
 ### Acceptance criteria
 
 - [ ] `alembic init` run; `alembic.ini` and `alembic/env.py` configured with `DATABASE_URL`
