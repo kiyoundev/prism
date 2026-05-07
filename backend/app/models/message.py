@@ -1,5 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import relationship
+
 from app.models.base import Base
 
 
@@ -19,6 +21,8 @@ class Message(Base):
     ), nullable=False)
     category = sa.Column(sa.Text, nullable=True)
     metadata_ = sa.Column("metadata", JSONB, nullable=True)
+
+    analyses = relationship("MessageAnalysis", back_populates="message", cascade="all, delete-orphan")
 
     __table_args__ = (
         sa.Index("ix_messages_source", "source"),
