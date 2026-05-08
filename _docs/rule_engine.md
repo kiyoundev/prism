@@ -74,7 +74,30 @@ The engine determines the intent/category of a message (e.g., Delivery, Banking,
 
 1. **Normalize and parse.** Lowercase the URL, strip surrounding punctuation, decode punycode/percent-encoding, and run it through a robust parser (e.g., `urllib.parse`). This ensures downstream checks operate on the true hostname/path rather than the user-facing representation.
 2. **Extract the registered domain.** Use a public-suffix list helper (`tldextract`) to derive the effective second-level domain. This distinguishes legitimate subdomains (`tracking.purolator.com`) from lookalike hostnames (`purolator.com-secure.vip`).
-3. **Allowlist / denylist checks.** Compare the registered domain against brand-specific allowlists (canonical domains for Purolator, CRA, banks) and global denylists of known bad hosts, URL shorteners, or previously-seen typosquats. Allowlist hits can immediately boost confidence; deny hits add strong risk.
-4. **Heuristic scoring.** When a domain misses both lists, apply fast heuristics: homoglyph/punycode detection, suspicious or free-hosting TLDs, over-hyphenated brand keywords, entropy of the hostname, or WHOIS-age (flag domains registered within the last N days).
-5. **Network and reputation lookups (optional).** Resolve DNS to capture IP/ASN/country mismatches and query reputation services (Google Safe Browsing, PhishTank, VirusTotal) when latency budgets allow. Cache these results to avoid repeated external calls.
-6. **Emit rule signals.** Convert the outcomes (allowlist match, deny hit, heuristic score, reputation verdict) into structured signals that feed the rule engine. Each signal can contribute weighted points plus human-readable explanations for the final report.
+3. **Unwrap redirect proxies.** Before any domain analysis, check whether the URL is a known redirect wrapper and resolve it to the true destination. Two patterns observed in the wild:
+   - **Google redirect** — `google.com/url?q=https://parking-canada-ticket.com`: The real destination is in the `q` query parameter. Scammers use this because the surface domain is `google.com`, bypassing naive domain-only filters.
+   - **Google AMP Cache** — `google.com/amp/fedexclient-delivery.com`: Google's AMP proxy serves cached pages at `google.com/amp/s/{domain}` or `google.com/amp/{domain}`. Scammers publish an AMP-compatible phishing page so the visible domain is always `google.com`.
+   - Emit a `REDIRECT_UNWRAPPED` signal and analyze the resolved destination URL recursively.
+4. **Allowlist / denylist checks.** Compare the registered domain against brand-specific allowlists (canonical domains for Purolator, CRA, banks) and global denylists of known bad hosts, URL shorteners, or previously-seen typosquats. Allowlist hits can immediately boost confidence; deny hits add strong risk.
+5. **Heuristic scoring.** When a domain misses both lists, apply fast heuristics: homoglyph/punycode detection, suspicious or free-hosting TLDs, over-hyphenated brand keywords, entropy of the hostname, or WHOIS-age (flag domains registered within the last N days). Additional signals to apply:
+   - **Brand-as-subdomain** — `purolator.com-payrp.vip`: The real brand name appears as a subdomain of a scam domain designed to look like the brand's domain at a glance. `tldextract` correctly parses this as subdomain=`purolator`, domain=`com-payrp`, suffix=`vip` — but brand-mismatch logic must check the full FQDN (not just the registered domain) for brand name presence. Signal: `BRAND_SUBDOMAIN_IMPERSONATION`.
+   - **Digit-prefixed domain** — `1royalbankomni-manage.com`, `1bmo-securityverify0.info`: Legitimate brand domains almost never begin with a digit. Signal: `DOMAIN_STARTS_WITH_DIGIT`.
+6. **Network and reputation lookups (optional).** Resolve DNS to capture IP/ASN/country mismatches and query reputation services (Google Safe Browsing, PhishTank, VirusTotal) when latency budgets allow. Cache these results to avoid repeated external calls.
+7. **Emit rule signals.** Convert the outcomes (allowlist match, deny hit, heuristic score, reputation verdict) into structured signals that feed the rule engine. Each signal can contribute weighted points plus human-readable explanations for the final report.
+
+---
+
+## URL Extractor (Phase 0)
+
+The extractor runs on raw SMS text **before normalization**. URLs must be captured in their original form so that domain casing, punycode, and percent-encoding are preserved for Phase 1 analysis.
+
+### Extraction strategy
+
+1. **Protocol URLs** — match `https?://[^\s]+`, strip trailing punctuation (`.`, `,`, `)`) that is not structurally part of the URL.
+2. **Bare domains** — match domains without a protocol (e.g., `bit.ly/abc123`, `manage-account-detail.com`) using a known-TLD whitelist. This avoids false positives on strings like `version 2.0` or `node.js` that a permissive regex would catch.
+
+### Edge cases and exclusions
+
+- **Email addresses** — `user@ontario.ca` contains a valid-looking domain (`ontario.ca`) but must not be extracted as a URL. Apply a negative lookbehind on `@` to exclude the domain portion of email addresses. Pattern: `(?<!\w@)`.
+- **Trailing `@` delimiter** — `See .crasecurecadeposit.com@Expires 29-01-25`: scammers sometimes use `@` as a visual separator after the domain rather than before it. This is not an email address and the domain should be extracted. The extraction regex must terminate the match at `@` as a stop character so `@Expires` is not included in the captured URL.
+- **Leading punctuation** — domains preceded by `.` (e.g., `See .domain.com`) are handled correctly by word-boundary matching; the leading period is not part of the domain.
