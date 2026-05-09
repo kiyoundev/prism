@@ -54,6 +54,7 @@ storybook-static
 # AI dev tooling
 .windsurf/
 .claude/
+.plan/
 
 #SWC
 .swc

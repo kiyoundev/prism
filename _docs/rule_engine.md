@@ -93,11 +93,26 @@ The extractor runs on raw SMS text **before normalization**. URLs must be captur
 
 ### Extraction strategy
 
-1. **Protocol URLs** — match `https?://[^\s]+`, strip trailing punctuation (`.`, `,`, `)`) that is not structurally part of the URL.
-2. **Bare domains** — match domains without a protocol (e.g., `bit.ly/abc123`, `manage-account-detail.com`) using a known-TLD whitelist. This avoids false positives on strings like `version 2.0` or `node.js` that a permissive regex would catch.
+Two-pass approach:
+
+1. **Protocol URLs** — match `https?://[^\s@]+`, strip trailing punctuation (`.`, `,`, `)`) that is not structurally part of the URL. Record matched spans.
+2. **Bare domains** — blank out protocol URL spans, strip zero-width characters from the scrubbed text, then match domains without a protocol (e.g., `bit.ly/abc123`, `manage-account-detail.com`) using a known-TLD whitelist. Stripping ZWS before this pass catches domains where scammers insert zero-width characters mid-label to break naive regex matching. The TLD whitelist avoids false positives on strings like `version 2.0` or `node.js`.
+
+Domain label characters use `\w` (Unicode-aware in Python 3) rather than `[a-zA-Z0-9]` so that homoglyph-substituted labels (Cyrillic, Greek) are captured. The TLD anchor remains ASCII — all real TLDs are ASCII even for IDN domains.
 
 ### Edge cases and exclusions
 
-- **Email addresses** — `user@ontario.ca` contains a valid-looking domain (`ontario.ca`) but must not be extracted as a URL. Apply a negative lookbehind on `@` to exclude the domain portion of email addresses. Pattern: `(?<!\w@)`.
+- **Email addresses** — `user@ontario.ca` contains a valid-looking domain (`ontario.ca`) but must not be extracted as a URL. Apply a negative lookbehind on `@` to exclude the domain portion of email addresses. Pattern: `(?<!\w@)`. Because `\w` is Unicode-aware, homoglyph email addresses (e.g., `ϲοηѕʋμεг@ontario.ca`) are also excluded.
 - **Trailing `@` delimiter** — `See .crasecurecadeposit.com@Expires 29-01-25`: scammers sometimes use `@` as a visual separator after the domain rather than before it. This is not an email address and the domain should be extracted. The extraction regex must terminate the match at `@` as a stop character so `@Expires` is not included in the captured URL.
 - **Leading punctuation** — domains preceded by `.` (e.g., `See .domain.com`) are handled correctly by word-boundary matching; the leading period is not part of the domain.
+
+### URL obfuscation attack coverage
+
+| # | Attack | Example | Protocol pass | Bare domain pass |
+|---|--------|---------|:---:|:---:|
+| 1 | Punycode / IDN | `https://xn--pple-43d.com` | ✅ | ✅ |
+| 2 | Raw Unicode protocol URL | `https://аpple.com` (Cyrillic `а`) | ✅ `[^\s@]+` is not ASCII-restricted | ✅ `\w` label pattern |
+| 3 | Bare Unicode domain | `аpple.com` (Cyrillic `а`) | — | ✅ `\w` label pattern |
+| 4 | ZWS inside domain label | `bit.l​y/abc` (U+200B mid-label) | ✅ captured with ZWS; Phase 1 strips during URL normalization | ✅ ZWS stripped from scrubbed text before pass |
+| 5 | Auth-URL `@` abuse | `https://google.com@evil.com` | ❌ stops at `@`; `evil.com` not captured — Phase 1 concern | — |
+| 6 | Bare IP address | `192.168.1.1/login` | ✅ protocol IPs caught | ❌ no TLD; Phase 1 `IP_ADDRESS_URL` signal covers protocol IPs |
