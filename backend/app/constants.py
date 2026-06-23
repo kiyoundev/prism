@@ -1,7 +1,10 @@
-ZERO_WIDTH_CHARS = ["\u200b", "\u200c", "\u200d", "\ufeff", "\u2060"]
+import re
+
+_ZERO_WIDTH_CHARS = ["\u200b", "\u200c", "\u200d", "\ufeff", "\u2060"]
+_ZERO_WIDTH_RE = re.compile(f"[{''.join(_ZERO_WIDTH_CHARS)}]")
 
 # Visual homoglyph \u2192 Latin equivalent \u2014 lowercase only (normalize() lowercases before applying this)
-CONFUSABLES = {
+_CONFUSABLES = {
     # Greek lowercase
     "\u03b1": "a",  # \u03b1
     "\u03b5": "e",  # \u03b5
@@ -22,3 +25,9 @@ CONFUSABLES = {
     "\u0445": "x",  # \u0445
     "\u0443": "y",  # \u0443 (looks like y)
 }
+
+_TLDS = (
+    r"com|ca|net|org|io|gov|edu|co|us|uk|ly|me|biz|info|app|dev"
+    r"|xyz|vip|cc|tv|gl|eu|fr|de|au|nz|ru|jp|mobi|online|shop"
+    r"|site|store|top|tech|news|pro|live|club|blog|link|click"
+)

@@ -1,10 +1,8 @@
 import re
 import unicodedata
 
-from app.constants import CONFUSABLES, ZERO_WIDTH_CHARS
+from app.constants import _CONFUSABLES, _ZERO_WIDTH_RE
 from unidecode import unidecode
-
-_ZERO_WIDTH_RE = re.compile(f"[{''.join(ZERO_WIDTH_CHARS)}]")
 
 # 1. Lowercase conversion
 # 2. Punctuation stripping
@@ -25,7 +23,7 @@ def normalize(text: str) -> str:
     text = "".join(c for c in text if not unicodedata.combining(c))
 
     # confusable homoglyph substitution (visual match before phonetic transliteration)
-    text = "".join(CONFUSABLES.get(c, c) for c in text)
+    text = "".join(_CONFUSABLES.get(c, c) for c in text)
 
     # homoglyph flattening
     text = unidecode(text)
