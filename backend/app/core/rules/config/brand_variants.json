@@ -4,7 +4,11 @@
       "slug": "canada-post",
       "name": "Canada Post",
       "aliases": ["poste canada", "canada post"],
-      "domains": ["canadapost.ca", "canadapost-postescanada.ca", "postescanada.ca"]
+      "domains": [
+        "canadapost.ca",
+        "canadapost-postescanada.ca",
+        "postescanada.ca"
+      ]
     },
     {
       "slug": "purolator",

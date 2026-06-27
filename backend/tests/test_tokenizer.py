@@ -1,4 +1,4 @@
-from app.core.preprocessing.tokenizer import _ngrams, get_ngrams, tokenize
+from app.core.preprocessing.tokenizer import _ngrams, fuzzy_match, get_ngrams, tokenize
 
 
 # --- tokenize ---
@@ -80,3 +80,73 @@ def test_get_ngrams_two_tokens():
 
 def test_get_ngrams_four_tokens():
     assert get_ngrams(["a", "b", "c", "d"]) == ["a b", "b c", "c d", "a b c", "b c d"]
+
+
+# --- fuzzy_match ---
+
+
+def test_fuzzy_match_accent_obfuscation():
+    tokens = tokenize("cañada post")
+    assert fuzzy_match(tokens, ["Canada Post"]) == ["Canada Post"]
+
+
+def test_fuzzy_match_digit_substitution():
+    tokens = tokenize("amaz0n")
+    assert fuzzy_match(tokens, ["Amazon"]) == ["Amazon"]
+
+
+def test_fuzzy_match_no_match():
+    tokens = tokenize("hello world")
+    assert fuzzy_match(tokens, ["Canada Post", "Amazon"]) == []
+
+
+def test_fuzzy_match_exact():
+    tokens = tokenize("amazon")
+    assert fuzzy_match(tokens, ["Amazon"]) == ["Amazon"]
+
+
+def test_fuzzy_match_threshold_configurable():
+    tokens = tokenize("amazin")
+    assert fuzzy_match(tokens, ["Amazon"], threshold=50) == ["Amazon"]
+    assert fuzzy_match(tokens, ["Amazon"], threshold=95) == []
+
+
+def test_fuzzy_match_empty_tokens():
+    assert fuzzy_match([], ["Canada Post"]) == []
+
+
+def test_fuzzy_match_empty_candidates():
+    assert fuzzy_match(tokenize("canada post"), []) == []
+
+
+def test_fuzzy_match_no_duplicates():
+    tokens = tokenize("canada post canada post")
+    result = fuzzy_match(tokens, ["Canada Post"])
+    assert result == ["Canada Post"]
+
+
+def test_fuzzy_match_unigram_only_checked_for_single_word_candidate():
+    # "FedEx" is 1 word — only unigrams should match, not bigrams
+    tokens = tokenize("fedex delivery")
+    assert fuzzy_match(tokens, ["FedEx"]) == ["FedEx"]
+
+
+def test_fuzzy_match_realistic_candidates():
+    # candidates built the same way the brand extractor will:
+    # name field always included, aliases appended if non-empty
+    candidates = [
+        "Canada Post", "poste canada", "canada post",
+        "Purolator", "puro",
+        "FedEx",                                     # aliases is [] — name only
+        "UPS", "myups", "united parcel service",
+        "USPS", "united states postal service", "us postal service",
+        "DHL", "dhl express",
+    ]
+    # obfuscated "canada post" — accent substitution
+    assert "canada post" in fuzzy_match(tokenize("cañada post delivery"), candidates)
+    # obfuscated "purolator" — transposed letters
+    assert "Purolator" in fuzzy_match(tokenize("puroltaor shipment"), candidates)
+    # empty-alias brand matched via name field
+    assert "FedEx" in fuzzy_match(tokenize("f3dex package"), candidates)
+    # unrelated phrase should not match anything
+    assert fuzzy_match(tokenize("click here now"), candidates) == []
