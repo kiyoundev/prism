@@ -59,6 +59,8 @@ All issues are AFK unless marked HITL (requires manual action outside the codeba
 #29 — UCI SMS Spam Collection                       [HITL]
   └── #30 — features.py: TF-IDF pipeline            [also needs #18]
         └── #32 — classifier.py: train + serialize  [also needs #31]
+              └── #32.5 — logistic regression model [same features + split as #32]
+                    └── #32.6 — confusion matrix + FP/FN comparison [needs #32, #32.5]
 
 #31 — sentiment.py: NLTK signal                     [no deps — feeds into #32]
 
@@ -967,6 +969,69 @@ NLTK `vader_lexicon` must be downloaded if not already present.
 - [ ] `score()` returns `{ "ml_score": float, "ml_details": { "top_features": [...], "sentiment": float } }`
 - [ ] A known spam message from the seed corpus scores `ml_score > 0.5`
 - [ ] A known ham message from the seed corpus scores `ml_score < 0.5`
+
+---
+
+## [ ] Issue #32.5 — `classifier.py`: train + serialize logistic regression model
+
+**Type:** feat / AFK  
+**Estimate:** ~1.5h  
+**Blocked by:** #32  
+**Docs:** `.docs/overview.md` — Stage 3: Model selection
+
+### What to build
+
+Train a logistic regression classifier (`scikit-learn` `LogisticRegression`) on the same inputs as the Naive Bayes baseline from #32: the same TF-IDF features, the same sentiment feature, and the **same stratified train/test split with a fixed random seed**. Share the split logic with #32 (one helper, not two copies) so both models are always evaluated on identical data. Serialize to `backend/data/models/classifier_lr.pkl`, separate from the Naive Bayes `classifier.pkl`, so both can be loaded side by side for comparison in #32.6.
+
+The logistic regression model exposes the same `score(artifacts, rule_hits) -> dict` contract as the Naive Bayes model, with `ml_score` taken from `predict_proba` (probability of the scam class). It is **not** wired into the pipeline here; which model ships is decided in #32.6.
+
+### Acceptance criteria
+
+- [ ] Logistic regression trains on the same TF-IDF + sentiment features as #32
+- [ ] Train/test split is stratified, uses a fixed seed, and comes from a helper shared with #32
+- [ ] Model serializes to `backend/data/models/classifier_lr.pkl` and loads from disk without re-training
+- [ ] `score()` returns the same shape as #32: `{ "ml_score": float, "ml_details": { "top_features": [...], "sentiment": float } }`
+- [ ] `ml_score` comes from `predict_proba` and is in `[0, 1]`
+- [ ] `top_features` reflects the largest learned coefficients for the scam class
+- [ ] A known spam message from the seed corpus scores `ml_score > 0.5`; a known ham message scores `ml_score < 0.5`
+- [ ] The Naive Bayes model and `classifier.pkl` from #32 are unchanged
+
+---
+
+## [ ] Issue #32.6 — Model evaluation: confusion matrix, FP/FN inspection, Naive Bayes vs. logistic regression
+
+**Type:** feat / AFK  
+**Estimate:** ~2h  
+**Blocked by:** #32, #32.5  
+**Docs:** `.docs/overview.md` — Stage 3: Model selection
+
+### What to build
+
+An evaluation script (`backend/app/core/ml/evaluate.py`, runnable as `python -m app.core.ml.evaluate`) that loads both serialized models and scores them on the shared held-out split from #32/#32.5. A false negative (real scam scored as safe) is the costly error for Prism, so scam-class recall is weighted above precision. UCI is about 87% ham, so accuracy alone is misleading and must not be the deciding metric.
+
+For each model the script reports:
+- **Confusion matrix** (TP, FP, FN, TN) with the scam class as positive
+- **Precision, recall, and F1** for the scam class
+- **Calibration** (Brier score, and optionally a reliability curve)
+- **Threshold comparison**: all of the above at the default 0.5 cutoff and again at a lower cutoff chosen to raise scam-class recall, with FP and FN counts at each
+
+The script also writes the actual **false-positive and false-negative messages** for each model to a file under `backend/data/eval/` so wording each model misses or over-flags can be read directly, not just counted.
+
+The final step is a recorded decision: apply the upgrade criterion from `.docs/overview.md` (switch to logistic regression if scam-class recall or F1 improves without a meaningful precision drop, or if it is clearly better calibrated at similar F1; otherwise keep Naive Bayes) and note the result and the reasoning in `.docs/overview.md`. If logistic regression wins, it replaces `classifier.pkl` as the model loaded at startup.
+
+The same split, confusion matrix, FP/FN inspection, and threshold protocol is reused later to evaluate a Jev triage gate (post-MVP).
+
+### Acceptance criteria
+
+- [ ] Script loads both `classifier.pkl` and `classifier_lr.pkl` and scores them on the identical held-out split
+- [ ] Output includes a confusion matrix (TP, FP, FN, TN) per model with scam as the positive class
+- [ ] Output includes scam-class precision, recall, and F1 per model
+- [ ] Output includes a calibration measure (Brier score at minimum) per model
+- [ ] Results are reported at the 0.5 threshold and at one lower, recall-oriented threshold, with FP and FN counts at each
+- [ ] False-positive and false-negative messages per model are written to `backend/data/eval/`
+- [ ] Script is deterministic: re-running gives the same numbers
+- [ ] The Naive Bayes vs. logistic regression decision and its reasoning are recorded in `.docs/overview.md`
+- [ ] If logistic regression wins, it is the model loaded at FastAPI startup; otherwise `classifier.pkl` is unchanged
 
 ---
 
