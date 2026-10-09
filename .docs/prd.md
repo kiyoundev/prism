@@ -67,7 +67,7 @@ The final score is a weighted combination of all three phase scores. Every submi
 
 24. As a developer, I want every SMS submission to be stored in the `messages` table with its `source` and `label`, so that seed and user-submitted data are tracked separately.
 25. As a developer, I want every scoring run to produce a row in `message_analysis` with all three phase scores and the model version, so that analysis history is reproducible and auditable.
-26. As a developer, I want to seed the database with labeled scam and legit messages from the UCI SMS Spam Collection, so that Phase 2 has a training corpus before any user submissions exist.
+26. As a developer, I want to seed the database with labeled scam and legit messages from multiple public sources (NCSU, Smishtank, Reddit OCR, UCI SMS Spam Collection) plus transactional ham, so that Phase 2 has a training corpus before any user submissions exist.
 
 ### API & Security
 
@@ -116,7 +116,7 @@ The final score is a weighted combination of all three phase scores. Every submi
 - TF-IDF vectorization (`scikit-learn TfidfVectorizer`) on Phase 0 tokens — weights keywords by frequency in message vs. corpus.
 - NLTK `SentimentIntensityAnalyzer` produces urgency/negativity signal as secondary feature.
 - Naive Bayes classifier (baseline); serialized to disk after training, loaded at startup. Logistic regression is trained on the same split and replaces it only if it wins on scam-class recall/F1 or calibration (see `overview.md`, Stage 3 — Model selection).
-- Training corpus: UCI SMS Spam Collection (~5.5k labeled ham/spam messages).
+- Training corpus: multi-source (NCSU gateway phishing data, Smishtank, Reddit OCR scam text, UCI SMS Spam Collection, and transactional ham), with each row tagged by origin dataset. Evaluated on leave-one-source-out and a frozen Canadian-style held-out set. See `overview.md`, Seed & Reference Datasets.
 - Output: `ml_score [0,1]`, `ml_details{}` (TF-IDF feature weights, sentiment score).
 
 ### Phase 3 — Claude AI

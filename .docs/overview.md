@@ -86,6 +86,8 @@ Phase 0 outputs (the `artifacts{}` bundle passed to all subsequent phases):
 - `brand_slug` (or `null`)
 - `category` (`delivery | banking | tax | ... | unknown`)
 
+**Post-MVP (Jev):** an optional step can add Jev's category, brand and urgency/threat probabilities to `artifacts{}` under a `jev` key, alongside the keyword-based fields (issue #58, behind a config flag, after the #56 go/no-go). See `architecture.md`, section 9.
+
 ---
 
 ### Phase 1 — Deterministic Rule Engine (FastAPI)
@@ -125,11 +127,13 @@ Approach: **NLTK-based trained classifier** on labeled scam datasets.
 - **Naive Bayes classifier** (baseline) → Logistic Regression (upgrade) trained on labeled corpora
 - **Sentiment scoring** (`NLTK SentimentIntensityAnalyzer`) — urgency and negativity/threat level as a secondary signal; boosts confidence modestly but never decides alone
 
-Training data: **UCI SMS Spam Collection** as primary seed corpus. Additional Canadian/international datasets added as text-level data becomes available (CAFC, FTC feeds currently lack raw message text).
+Training data: a multi-source seed corpus (see [Seed & Reference Datasets](#seed--reference-datasets)). Scam examples come mainly from the NCSU gateway dataset, Smishtank and the Reddit OCR corpus; UCI SMS Spam Collection supplies ham and generic spam vocabulary. Every row carries its origin dataset so the classifier can be validated per source. Additional Canadian/international datasets are added as text-level data becomes available (CAFC, FTC feeds currently lack raw message text).
 
 Phase 2 outputs:
 - `ml_score` in `[0, 1]`
 - `ml_details` (TF-IDF feature weights, category confidence, sentiment signal)
+
+**Post-MVP (Jev):** Jev (TypeSafe AI) is evaluated as a third Phase 2 candidate against Naive Bayes and logistic regression, using the same protocol (issue #59). If it passes the upgrade criterion it can replace or supplement `ml_score` behind a config flag, with the local model as fallback. A triage gate (issue #60) may also use a confident classification to skip Phase 3. All Jev work depends on the #56 spike (privacy terms, zero-shot accuracy, injection test). See `architecture.md`, section 9.
 
 ### Phase 3 — Claude AI API (FastAPI)
 Inputs: raw SMS + Phase 0 artifacts + Phase 1 rule hits + Phase 2 outputs.
@@ -269,7 +273,36 @@ Config (`brand_seeds`, `category_keywords`) lives in backend JSON files for MVP.
 
 ## Seed & Reference Datasets
 
-- **UCI SMS Spam Collection (Kaggle)** — primary seed corpus (~5.5k labeled ham/spam messages). Used to train Phase 2 classifier.
+### Training sources (evaluated 2026-09-29)
+
+No public dataset of raw Canadian scam SMS was found. The best public sources of raw scam text, and how each is used:
+
+| Source | Content | Licence | Role in Prism |
+|---|---|---|---|
+| **NCSU "On SMS Phishing Tactics and Infrastructure"** ([wspr-ncsu/sms-phishing](https://github.com/wspr-ncsu/sms-phishing)) | About 159k lines of raw phishing SMS collected from public SMS gateways, confirmed by VirusTotal/APWG. Fields: message, destination number, timestamp. Scam only. | MIT | Primary scam source. |
+| **Smishtank** ([smishtank.com/dataset](https://smishtank.com/dataset)) | 1,090 validated submissions with sender, body, brand, URLs, VirusTotal and WHOIS data. US-leaning. Text comes from screenshots run through OCR, so expect some noise. | CC BY-NC-SA 4.0 (non-commercial, share-alike) | High-quality scam source. Check licence terms before any commercial or public release. |
+| **UCI SMS Spam Collection** | About 5.5k UK/Singapore SMS from around 2010: 4.8k ham, about 750 spam. | Research use | Only sizable public ham source. Also gives generic spam vocabulary and a neutral tone baseline for sentiment. |
+| **Reddit mobile-scam corpus** ([mms-characterization](https://github.com/mobile-scam-analysis/mms-characterization), paper arXiv 2605.16656) | 7 zipped CSVs (about 83 MB) of OCR text from screenshots posted to Reddit. US-style scams (IRS, DMV, E-ZPass tolls, USPS) and conversational scams (wrong-number, romance); few Canadian brands. Columns include `Extracted Text`, `timestamp`, `cluster`. Only part 1 (about 20.5k rows) was inspected. | No licence in repo (all rights reserved by default); user-generated Reddit content | Supplementary scam source. Noisy: OCR includes phone status bars and app UI text, and many rows are not scam or not SMS, so a scam filter is required. Use `Extracted Text` (the "Semantically Cleaned" column strips too much). Internal use only; do not redistribute. |
+
+Not used: the Mendeley 5,971-message SMS Phishing Dataset (and its HuggingFace mirrors), because its ham and spam come from UCI and would leak between train and test; ScamShield (India-focused, English/Hindi/Hinglish); `all-scam-spam` (43 languages, mixed email and SMS).
+
+**NCSU data caveats.** Mixed geography (UK, Austria and US numbers) and heavy gambling spam. Filter to `+1` destination numbers, drop gambling promotions, and deduplicate near-identical campaign messages before training.
+
+**Known gap: legitimate transactional SMS.** No public source provides real US/Canadian legitimate notifications (carrier notices, bank alerts, 2FA codes, appointment reminders). Sources to fill it: consented, PII-scrubbed messages from friends and family; template-based synthetic ham built from real brand formats and the `brand_variants.json` domains. UCI ham (casual chat) is only a weak substitute.
+
+### Rules for training on this mix
+
+The scam sources are transactional and link-heavy, while UCI ham is casual chat with no links. Trained naively, the classifier learns dataset style ("has a URL, looks formal, so scam") instead of scam behavior, and real legitimate notices get flagged.
+
+1. Tag every row with its origin dataset in addition to `source` and `label`.
+2. Validate leave-one-source-out (for example, train without Smishtank and test on it). A sharp drop means the model learned dataset style.
+3. Include transactional ham (see the gap above) so URLs and formal tone are not a scam-only signal.
+4. Consider masking URLs to a `<URL>` token in Phase 2 features. Phase 1 already scores URLs, so Phase 2 does not need them.
+5. Keep UCI's weight modest and report metrics per source.
+6. Judge the model on a frozen, hand-labeled Canadian-style held-out set (see architecture review, gap 4), not on a random split of the training corpus.
+
+### Other reference sources
+
 - **Canadian Anti-Fraud Centre (CAFC)** — monthly intelligence bulletins. Currently lacks raw text-level data; monitor for future access.
 - **FTC Consumer Sentinel Network** — Sentinel exports tagged as *Text Message Scam*. Monitor for text-level data.
 - **UK NCSC 7726 Program** — curated smishing templates from carrier-forwarded reports.
@@ -297,7 +330,7 @@ Config (`brand_seeds`, `category_keywords`) lives in backend JSON files for MVP.
 - Rule engine endpoints in FastAPI
 
 #### Stage 3: ML Classifier (Phase 2)
-- Load and preprocess UCI SMS Spam Collection
+- Build the multi-source seed corpus (NCSU, Smishtank, Reddit OCR, UCI, transactional ham) and a frozen Canadian-style held-out evaluation set
 - NLTK feature pipeline: tokenize → lemmatize → n-grams → sentiment
 - Train and evaluate classifier (Naive Bayes baseline, logistic regression upgrade) — see **Model selection** below
 - Integrate classifier into FastAPI scoring pipeline (receives Phase 1 context)
@@ -308,14 +341,14 @@ Config (`brand_seeds`, `category_keywords`) lives in backend JSON files for MVP.
 Naive Bayes is built first as the baseline: cheap, fast to train, and sets the score logistic regression must beat. Logistic regression is not assumed to win; it replaces Naive Bayes only if the comparison below supports it.
 
 - **Why logistic regression may win:** Naive Bayes treats every feature as independent evidence, so correlated features (e.g. overlapping Phase 1 rule hits, co-occurring words like "verify"/"account"/"suspended") are double-counted and `ml_score` tends toward overconfident 0/1 values. Logistic regression fits all weights jointly and usually yields better-calibrated probabilities. `ml_score` feeds the weighted combiner, so score quality matters more than headline accuracy.
-- **Comparison method:** train both models on the same stratified train/test split of the UCI corpus (fixed random seed), using identical TF-IDF + sentiment + Phase 1 features.
-- **Metrics:** report precision, recall, and F1 for the scam class, plus a confusion matrix. Do **not** rely on accuracy alone: UCI is ~87% ham, so an always-"ham" model scores ~87%. Check calibration (reliability curve or Brier score) on the held-out set.
+- **Comparison method:** train both models on the same data, using identical TF-IDF + sentiment + Phase 1 features and a fixed random seed. The data is the multi-source corpus (NCSU, Smishtank, Reddit OCR, UCI, transactional ham; see Seed & Reference Datasets), split stratified by label **and** origin dataset. Evaluate three ways: (1) the random split, as a sanity check only; (2) **leave-one-source-out**, training without one scam dataset and testing on it, with results reported per source; (3) the frozen Canadian-style held-out set (`eval_holdout.json`), which is never used for training or vectorizer fitting. Decide between models on (2) and (3), not (1).
+- **Metrics:** report precision, recall, and F1 for the scam class, plus a confusion matrix, per origin dataset and on the held-out set. Do **not** rely on accuracy alone: class balance depends on how the corpus is mixed (NCSU is scam-only and large, UCI is about 87% ham), so a trivial classifier can score well on any single split. Report the false-positive rate on transactional ham (legitimate messages with URLs and brand names) separately. Check calibration (reliability curve or Brier score) on the held-out set.
 - **Error costs (FP vs. FN):** a false negative (real scam scored as safe) is the costly error: the user may act on it, and the app targets vulnerable users. A false positive (legitimate message scored as scam) is cheaper per message but erodes trust if frequent. Scam-class recall is therefore weighted above precision. Phase 1 rules and Phase 3 (Claude) can still catch a Phase 2 false negative, since `ml_score` is only one combiner input.
 - **Error inspection:** for each model, read the actual false-positive and false-negative messages, not just the counts, to see what wording each model misses or over-flags.
 - **Threshold comparison:** compare models at the default 0.5 cutoff, then at a lower cutoff chosen to raise scam-class recall. Report FP and FN counts at each, since the cutoff trades one error for the other.
 - **Reuse for Jev (post-MVP):** the same split, confusion matrix, FP/FN inspection and threshold protocol should be used to evaluate a Jev triage gate against Phase 2, so all candidates are compared on identical terms.
 - **Upgrade criterion:** switch to logistic regression if it improves scam-class recall or F1 without a meaningful precision drop, or if it is clearly better calibrated at similar F1. If results are within noise, keep Naive Bayes for simplicity.
-- **Known limits:** UCI is small and dated, so results may not transfer to current smishing (e.g. toll/parking-ticket scams). Treat metrics as a relative comparison between models, not an absolute quality guarantee. Phase 3 (Claude) covers wording the corpus never saw.
+- **Known limits:** no public corpus contains Canadian scam text at scale, and UCI is small, dated, and UK/Singapore-based. The scam sources are US-leaning, and transactional ham is partly synthetic, so results may not transfer to current Canadian smishing. Treat metrics as a relative comparison between models, not an absolute quality guarantee. Phase 3 (Claude) covers wording the corpus never saw.
 - **Deferred:** formal probability calibration (e.g. Platt scaling) and combiner weight tuning stay post-MVP until real evaluation data exists.
 
 #### Stage 4: Claude AI Integration (Phase 3)
@@ -342,6 +375,12 @@ Naive Bayes is built first as the baseline: cheap, fast to train, and sets the s
 - Integration tests for full API flow
 - UI testing and responsive design
 - Performance optimization and error handling
+
+### MVP hardening (architecture review follow-ups)
+Tracked in `issues.md` Group 10 (#61–#69): ADRs for the combiner, Phase 3 failure handling and skip gate; positive-evidence rules; prompt-injection hardening; Phase 3 degraded mode with a "skipped" state; a rule-floor combiner with verdict bands; a rule-only Phase 3 skip gate; a persistent dedup cache; per-IP rate limiting; and the optional `sender` decision. These belong before the public demo.
+
+### Post-MVP — Jev classification and triage
+Tracked in `issues.md` Group 9 (#55–#60): a swappable Jev client, a go/no-go spike on the Canadian held-out set, pre-labeling for annotation, Phase 0 category/brand/tone classification, Phase 2 comparison, and a Phase 3 triage gate with a "Phase 3 skipped" state.
 
 ### v2 — RAG Pipeline + Self-improving Loop
 RAG closes the gap between Phase 3's structured prompt context and Claude's general training knowledge. By injecting confirmed scam examples from our own corpus into the Phase 3 prompt, Claude reasons against patterns we curate and verify — not patterns from its training data. This anchors scoring and explanations to real-world scam behavior we control.
