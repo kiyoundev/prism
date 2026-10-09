@@ -1,6 +1,6 @@
 # Prism — Issue Backlog
 
-Generated from PRD: `_docs/prd.md`  
+Generated from PRD: `.docs/prd.md`  
 Pace: solo part-time (~6 hrs/week across 3–4 projects)  
 Total estimate: ~78 hours → **MVP target: end of August 2026**
 
@@ -199,7 +199,7 @@ Create the Supabase project that will serve as Prism's primary Postgres database
 **Type:** chore / HITL  
 **Estimate:** ~30m  
 **Blocked by:** #5  
-**Docs:** `_docs/challenges.md` — Which env vars live where; Why does Vercel/Railway change the Docker strategy
+**Docs:** `.docs/challenges.md` — Which env vars live where; Why does Vercel/Railway change the Docker strategy
 
 ### What to build
 
@@ -241,7 +241,7 @@ Manual smoke test to verify the Railway FastAPI deployment is live, healthy, and
 **Type:** chore / HITL  
 **Estimate:** ~30m  
 **Blocked by:** None — parallel with #5  
-**Docs:** `_docs/challenges.md` — Why does the Next.js proxy need both FASTAPI_URL and INTERNAL_API_KEY
+**Docs:** `.docs/challenges.md` — Why does the Next.js proxy need both FASTAPI_URL and INTERNAL_API_KEY
 
 ### What to build
 
@@ -279,7 +279,7 @@ Manual smoke test to verify the Vercel Next.js deployment is live and the fronte
 **Type:** infra / AFK  
 **Estimate:** ~30m  
 **Blocked by:** #5, #6, #7  
-**Docs:** `_docs/challenges.md` — Which env vars live where
+**Docs:** `.docs/challenges.md` — Which env vars live where
 
 ### What to build
 
@@ -302,7 +302,7 @@ Create `.env.example` files in both `backend/` and `frontend/` documenting every
 **Type:** infra / AFK  
 **Estimate:** ~45m  
 **Blocked by:** #8  
-**Docs:** `_docs/challenges.md` — How env var validation works in frontend and backend
+**Docs:** `.docs/challenges.md` — How env var validation works in frontend and backend
 
 ### What to build
 
@@ -326,7 +326,7 @@ Frontend required variables: `FASTAPI_URL`, `INTERNAL_API_KEY`.
 **Type:** test / AFK  
 **Estimate:** ~30m  
 **Blocked by:** #8.5  
-**Docs:** `_docs/challenges.md` — How env var validation works in frontend and backend
+**Docs:** `.docs/challenges.md` — How env var validation works in frontend and backend
 
 ### What to build
 
@@ -351,7 +351,7 @@ Manual smoke tests to verify that `config.py` and `env.ts` fail fast with clear 
 **Type:** infra / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #5  
-**Docs:** `_docs/challenges.md` — Why does Vercel/Railway change the Docker strategy; When to use docker-compose vs. running services natively
+**Docs:** `.docs/challenges.md` — Why does Vercel/Railway change the Docker strategy; When to use docker-compose vs. running services natively
 
 ### What to build
 
@@ -373,7 +373,7 @@ A `docker-compose.yml` at the repo root that spins up FastAPI and a local Postgr
 **Type:** infra / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #5  
-**Docs:** `_docs/database.md` — messages table
+**Docs:** `.docs/database.md` — messages table
 
 ### What to build
 
@@ -409,7 +409,7 @@ Initialize Alembic in `backend/` and write the first migration that creates the 
 **Type:** infra / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #10  
-**Docs:** `_docs/database.md` — message_analysis table
+**Docs:** `.docs/database.md` — message_analysis table
 
 ### What to build
 
@@ -492,7 +492,7 @@ Install and configure shadcn/ui (built on Radix UI) and Lucide React icons in th
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/rule_engine.md` — Phase 0: Normalization
+**Docs:** `.docs/rule_engine.md` — Phase 0: Normalization
 
 ### What to build
 
@@ -523,7 +523,7 @@ The function must be idempotent (running it twice produces the same result as ru
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/rule_engine.md` — URL Extractor (Phase 0); URL Checker
+**Docs:** `.docs/rule_engine.md` — URL Extractor (Phase 0); URL Checker
 
 ### What to build
 
@@ -545,7 +545,7 @@ The function must be idempotent (running it twice produces the same result as ru
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/rule_engine.md` — Phase 0: Tokenization & N-grams
+**Docs:** `.docs/rule_engine.md` — Phase 0: Tokenization & N-grams
 
 ### What to build
 
@@ -572,7 +572,7 @@ These outputs are consumed by both the brand/category extractor and the Phase 2 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #16  
-**Docs:** `_docs/rule_engine.md` — Phase 0: Fuzzy Matching
+**Docs:** `.docs/rule_engine.md` — Phase 0: Fuzzy Matching
 
 ### What to build
 
@@ -593,7 +593,7 @@ Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], thre
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #14, #15, #16, #17  
-**Docs:** `_docs/rule_engine.md` — Phase 0: artifacts{}; `_docs/overview.md` — Phase 0
+**Docs:** `.docs/rule_engine.md` — Phase 0: artifacts{}; `.docs/overview.md` — Phase 0
 
 ### What to build
 
@@ -627,7 +627,7 @@ Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], thre
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #18  
-**Docs:** `_docs/rule_engine.md` — Category Extraction Strategy: Brand Detection
+**Docs:** `.docs/rule_engine.md` — Category Extraction Strategy: Brand Detection
 
 ### What to build
 
@@ -651,7 +651,7 @@ Also check the extracted URLs: if any URL's registered domain matches a brand's 
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #19  
-**Docs:** `_docs/rule_engine.md` — Category Extraction Strategy: Keyword Scoring & Resolution
+**Docs:** `.docs/rule_engine.md` — Category Extraction Strategy: Keyword Scoring & Resolution
 
 ### What to build
 
@@ -678,7 +678,7 @@ Implement the keyword-based fallback in `category_extractor.py`. Load `category_
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #18  
-**Docs:** `_docs/rule_engine.md` — URL Checker
+**Docs:** `.docs/rule_engine.md` — URL Checker
 
 ### What to build
 
@@ -707,7 +707,7 @@ Emit rule signals as `(code, display_string)` tuples to be collected by the rule
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #21  
-**Docs:** `_docs/rule_engine.md` — URL Checker: brand-domain mismatch; Brand-as-subdomain signal
+**Docs:** `.docs/rule_engine.md` — URL Checker: brand-domain mismatch; Brand-as-subdomain signal
 
 ### What to build
 
@@ -728,7 +728,7 @@ Extend `url_checker.py` with brand-domain mismatch detection. If a brand was det
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/rule_engine.md` — Phase 0: Normalization (homoglyph flattening, zero-width removal)
+**Docs:** `.docs/rule_engine.md` — Phase 0: Normalization (homoglyph flattening, zero-width removal)
 
 ### What to build
 
@@ -754,7 +754,7 @@ Emit a `homoglyph_detected` or `zero_width_detected` signal per type found.
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/overview.md` — Phase 1: Rule Engine
+**Docs:** `.docs/overview.md` — Phase 1: Rule Engine
 
 ### What to build
 
@@ -781,7 +781,7 @@ Each match emits a `(code, display_string)` signal.
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #24  
-**Docs:** `_docs/overview.md` — Phase 1: Rule Engine
+**Docs:** `.docs/overview.md` — Phase 1: Rule Engine
 
 ### What to build
 
@@ -806,7 +806,7 @@ Extend `pattern_matcher.py` with two additional rule categories:
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #20, #22, #23, #25  
-**Docs:** `_docs/overview.md` — Phase 1: Rule Engine; `_docs/rule_engine.md` — URL Checker: Emit rule signals
+**Docs:** `.docs/overview.md` — Phase 1: Rule Engine; `.docs/rule_engine.md` — URL Checker: Emit rule signals
 
 ### What to build
 
@@ -833,7 +833,7 @@ Signal weights live in a config file, not hardcoded in logic.
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #26  
-**Docs:** `_docs/overview.md` — Phase 0–1 pipeline flow
+**Docs:** `.docs/overview.md` — Phase 0–1 pipeline flow
 
 ### What to build
 
@@ -860,7 +860,7 @@ Wire Phase 0 + Phase 1 into a working FastAPI endpoint at `POST /v1/score`. This
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/challenges.md` — Why does the Next.js proxy need both FASTAPI_URL and INTERNAL_API_KEY
+**Docs:** `.docs/challenges.md` — Why does the Next.js proxy need both FASTAPI_URL and INTERNAL_API_KEY
 
 ### What to build
 
@@ -910,7 +910,7 @@ Load both files into the `messages` table via `POST /v1/dataset/messages` (or di
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #18, #29  
-**Docs:** `_docs/overview.md` — Phase 2: ML Classifier
+**Docs:** `.docs/overview.md` — Phase 2: ML Classifier
 
 ### What to build
 
@@ -931,7 +931,7 @@ Load both files into the `messages` table via `POST /v1/dataset/messages` (or di
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/overview.md` — Phase 2: ML Classifier
+**Docs:** `.docs/overview.md` — Phase 2: ML Classifier
 
 ### What to build
 
@@ -953,7 +953,7 @@ NLTK `vader_lexicon` must be downloaded if not already present.
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #30, #31  
-**Docs:** `_docs/overview.md` — Phase 2: ML Classifier
+**Docs:** `.docs/overview.md` — Phase 2: ML Classifier
 
 ### What to build
 
@@ -975,7 +975,7 @@ NLTK `vader_lexicon` must be downloaded if not already present.
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #27, #32  
-**Docs:** `_docs/overview.md` — Phase 2: ML Classifier
+**Docs:** `.docs/overview.md` — Phase 2: ML Classifier
 
 ### What to build
 
@@ -1000,7 +1000,7 @@ Wire `MLClassifier.score()` into the scoring pipeline after Phase 1. The classif
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** None — start anytime  
-**Docs:** `_docs/overview.md` — Phase 3: Claude AI
+**Docs:** `.docs/overview.md` — Phase 3: Claude AI
 
 ### What to build
 
@@ -1024,7 +1024,7 @@ Claude must never be called cold with just the raw SMS — all prior phase conte
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #33, #34  
-**Docs:** `_docs/overview.md` — Phase 3: Claude AI
+**Docs:** `.docs/overview.md` — Phase 3: Claude AI
 
 ### What to build
 
@@ -1045,7 +1045,7 @@ Wire `ClaudeClient.score()` into the scoring pipeline after Phase 2. Claude rece
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #35  
-**Docs:** `_docs/overview.md` — Phase 3: Claude AI
+**Docs:** `.docs/overview.md` — Phase 3: Claude AI
 
 ### What to build
 
@@ -1070,7 +1070,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #11  
-**Docs:** `_docs/database.md` — messages table; message_analysis table
+**Docs:** `.docs/database.md` — messages table; message_analysis table
 
 ### What to build
 
@@ -1092,7 +1092,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #37  
-**Docs:** `_docs/database.md` — messages table; message_analysis table
+**Docs:** `.docs/database.md` — messages table; message_analysis table
 
 ### What to build
 
@@ -1118,7 +1118,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #26, #33, #35  
-**Docs:** `_docs/overview.md` — Score Combiner
+**Docs:** `.docs/overview.md` — Score Combiner
 
 ### What to build
 
@@ -1140,7 +1140,7 @@ Before calling Claude, compute a SHA-256 hash of the raw SMS text. Check an in-m
 **Type:** feat / AFK  
 **Estimate:** ~3h  
 **Blocked by:** #35, #37, #38, #39  
-**Docs:** `_docs/overview.md` — POST /v1/score full pipeline; `_docs/database.md` — messages table; message_analysis table
+**Docs:** `.docs/overview.md` — POST /v1/score full pipeline; `.docs/database.md` — messages table; message_analysis table
 
 ### What to build
 
@@ -1162,7 +1162,7 @@ Wire the full four-phase pipeline into `POST /v1/score` and add database persist
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #40  
-**Docs:** `_docs/overview.md` — API endpoints
+**Docs:** `.docs/overview.md` — API endpoints
 
 ### What to build
 
@@ -1189,7 +1189,7 @@ Both require `X-API-Key`.
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #41  
-**Docs:** `_docs/overview.md` — API endpoints; `_docs/database.md` — message_analysis table
+**Docs:** `.docs/overview.md` — API endpoints; `.docs/database.md` — message_analysis table
 
 ### What to build
 
@@ -1213,7 +1213,7 @@ Both require `X-API-Key`.
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #40  
-**Docs:** `_docs/challenges.md` — Why does the Next.js proxy need both FASTAPI_URL and INTERNAL_API_KEY; Why is CORS less important given the proxy pattern
+**Docs:** `.docs/challenges.md` — Why does the Next.js proxy need both FASTAPI_URL and INTERNAL_API_KEY; Why is CORS less important given the proxy pattern
 
 ### What to build
 
@@ -1234,7 +1234,7 @@ A Next.js App Router route handler at `POST /api/score` that forwards requests t
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #43  
-**Docs:** `_docs/overview.md` — Frontend: /demo
+**Docs:** `.docs/overview.md` — Frontend: /demo
 
 ### What to build
 
@@ -1256,7 +1256,7 @@ A Next.js App Router route handler at `POST /api/score` that forwards requests t
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #44  
-**Docs:** `_docs/overview.md` — Frontend: /demo
+**Docs:** `.docs/overview.md` — Frontend: /demo
 
 ### What to build
 
@@ -1280,7 +1280,7 @@ A Next.js App Router route handler at `POST /api/score` that forwards requests t
 **Type:** feat / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #45  
-**Docs:** `_docs/overview.md` — Phase 3: Claude AI; Frontend: /demo
+**Docs:** `.docs/overview.md` — Phase 3: Claude AI; Frontend: /demo
 
 ### What to build
 
@@ -1300,7 +1300,7 @@ A panel below the `ScoreCard` that displays `ai_explanation` — Claude's plain-
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #41, #43  
-**Docs:** `_docs/overview.md` — Frontend: /history
+**Docs:** `.docs/overview.md` — Frontend: /history
 
 ### What to build
 
@@ -1321,7 +1321,7 @@ A panel below the `ScoreCard` that displays `ai_explanation` — Claude's plain-
 **Type:** feat / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #42, #43  
-**Docs:** `_docs/overview.md` — Frontend: /messages/[id]; `_docs/database.md` — message_analysis table
+**Docs:** `.docs/overview.md` — Frontend: /messages/[id]; `.docs/database.md` — message_analysis table
 
 ### What to build
 
@@ -1355,7 +1355,7 @@ Returns a Next.js 404 page for unknown IDs.
 **Type:** test / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #14–#17  
-**Docs:** `_docs/rule_engine.md` — Phase 0: Normalization; URL Extractor (Phase 0); Tokenization & Fuzzy Matching
+**Docs:** `.docs/rule_engine.md` — Phase 0: Normalization; URL Extractor (Phase 0); Tokenization & Fuzzy Matching
 
 ### What to build
 
@@ -1381,7 +1381,7 @@ Unit tests in `backend/tests/test_preprocessing.py` for all Phase 0 modules. Tes
 **Type:** test / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #19–#26  
-**Docs:** `_docs/rule_engine.md` — URL Checker; Category Extraction Strategy
+**Docs:** `.docs/rule_engine.md` — URL Checker; Category Extraction Strategy
 
 ### What to build
 
@@ -1404,7 +1404,7 @@ Unit tests in `backend/tests/test_rules.py` for all Phase 1 rule modules. Each r
 **Type:** test / AFK  
 **Estimate:** ~1h  
 **Blocked by:** #30–#32  
-**Docs:** `_docs/overview.md` — Phase 2: ML Classifier
+**Docs:** `.docs/overview.md` — Phase 2: ML Classifier
 
 ### What to build
 
@@ -1427,7 +1427,7 @@ Unit tests in `backend/tests/test_ml.py` for Phase 2 modules. The classifier tes
 **Type:** test / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #40  
-**Docs:** `_docs/overview.md` — POST /v1/score full pipeline; `_docs/database.md` — messages table; message_analysis table
+**Docs:** `.docs/overview.md` — POST /v1/score full pipeline; `.docs/database.md` — messages table; message_analysis table
 
 ### What to build
 
@@ -1449,7 +1449,7 @@ Integration test in `backend/tests/test_api.py` that submits a known scam SMS to
 **Type:** test / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #41, #42, #52  
-**Docs:** `_docs/overview.md` — API endpoints
+**Docs:** `.docs/overview.md` — API endpoints
 
 ### What to build
 
@@ -1479,7 +1479,7 @@ Integration tests in `backend/tests/test_api.py` (same file as #52) for the thre
 **Type:** test / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #44, #52  
-**Docs:** `_docs/overview.md` — Frontend: /demo
+**Docs:** `.docs/overview.md` — Frontend: /demo
 
 ### What to build
 
@@ -1501,7 +1501,7 @@ Playwright end-to-end test that exercises the `/demo` page in a real browser aga
 **Type:** test / AFK  
 **Estimate:** ~2h  
 **Blocked by:** #34, #35, #36  
-**Docs:** `_docs/overview.md` — Phase 3: Claude AI
+**Docs:** `.docs/overview.md` — Phase 3: Claude AI
 
 ### What to build
 

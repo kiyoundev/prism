@@ -299,9 +299,24 @@ Config (`brand_seeds`, `category_keywords`) lives in backend JSON files for MVP.
 #### Stage 3: ML Classifier (Phase 2)
 - Load and preprocess UCI SMS Spam Collection
 - NLTK feature pipeline: tokenize → lemmatize → n-grams → sentiment
-- Train and evaluate classifier (Naive Bayes baseline, logistic regression upgrade)
+- Train and evaluate classifier (Naive Bayes baseline, logistic regression upgrade) — see **Model selection** below
 - Integrate classifier into FastAPI scoring pipeline (receives Phase 1 context)
 - Store `ml_score` and `ml_details` in `message_analysis`
+
+**Model selection (Naive Bayes vs. logistic regression)**
+
+Naive Bayes is built first as the baseline: cheap, fast to train, and sets the score logistic regression must beat. Logistic regression is not assumed to win; it replaces Naive Bayes only if the comparison below supports it.
+
+- **Why logistic regression may win:** Naive Bayes treats every feature as independent evidence, so correlated features (e.g. overlapping Phase 1 rule hits, co-occurring words like "verify"/"account"/"suspended") are double-counted and `ml_score` tends toward overconfident 0/1 values. Logistic regression fits all weights jointly and usually yields better-calibrated probabilities. `ml_score` feeds the weighted combiner, so score quality matters more than headline accuracy.
+- **Comparison method:** train both models on the same stratified train/test split of the UCI corpus (fixed random seed), using identical TF-IDF + sentiment + Phase 1 features.
+- **Metrics:** report precision, recall, and F1 for the scam class, plus a confusion matrix. Do **not** rely on accuracy alone: UCI is ~87% ham, so an always-"ham" model scores ~87%. Check calibration (reliability curve or Brier score) on the held-out set.
+- **Error costs (FP vs. FN):** a false negative (real scam scored as safe) is the costly error: the user may act on it, and the app targets vulnerable users. A false positive (legitimate message scored as scam) is cheaper per message but erodes trust if frequent. Scam-class recall is therefore weighted above precision. Phase 1 rules and Phase 3 (Claude) can still catch a Phase 2 false negative, since `ml_score` is only one combiner input.
+- **Error inspection:** for each model, read the actual false-positive and false-negative messages, not just the counts, to see what wording each model misses or over-flags.
+- **Threshold comparison:** compare models at the default 0.5 cutoff, then at a lower cutoff chosen to raise scam-class recall. Report FP and FN counts at each, since the cutoff trades one error for the other.
+- **Reuse for Jev (post-MVP):** the same split, confusion matrix, FP/FN inspection and threshold protocol should be used to evaluate a Jev triage gate against Phase 2, so all candidates are compared on identical terms.
+- **Upgrade criterion:** switch to logistic regression if it improves scam-class recall or F1 without a meaningful precision drop, or if it is clearly better calibrated at similar F1. If results are within noise, keep Naive Bayes for simplicity.
+- **Known limits:** UCI is small and dated, so results may not transfer to current smishing (e.g. toll/parking-ticket scams). Treat metrics as a relative comparison between models, not an absolute quality guarantee. Phase 3 (Claude) covers wording the corpus never saw.
+- **Deferred:** formal probability calibration (e.g. Platt scaling) and combiner weight tuning stay post-MVP until real evaluation data exists.
 
 #### Stage 4: Claude AI Integration (Phase 3)
 - Anthropic SDK integration

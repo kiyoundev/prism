@@ -175,7 +175,7 @@ The pipeline is **sequential, not parallel**. Each phase enriches the context pa
 - Input: Phase 0 artifacts + Phase 1 rule hits
 - TF-IDF weighting (`scikit-learn TfidfVectorizer`) on Phase 0 tokens
 - NLTK sentiment scoring (urgency/negativity as secondary signal)
-- Naive Bayes classifier (baseline), trained on UCI SMS Spam Collection
+- Naive Bayes classifier (baseline), trained on UCI SMS Spam Collection; logistic regression is compared against it on the same split and adopted only if it wins (see `overview.md`, Stage 3 — Model selection)
 - Output: `ml_score [0,1]`, `ml_details{}`
 
 ### Phase 3 — Claude AI API
@@ -319,7 +319,40 @@ The self-training loop is **post-MVP** and runs periodically (batch, not real-ti
 
 ---
 
-## 9. Security Baseline
+## 9. Future: Jev Triage Gate (Post-MVP)
+
+**Status: not implemented.** Original Phases 0–3 ship first; this is a later addition once the core pipeline is stable.
+
+[Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) (TypeSafe AI) is a "System-1" model: no autoregressive text generation, returns typed classifications with calibrated probability + confidence scores over a fixed, predefined answer space. ~70–500ms latency, near-zero cost per call. No natural-language rationale — numbers only.
+
+**Where it fits**: a triage gate inserted between Phase 2 and Phase 3.
+
+```
+Phase 0 → Phase 1 → Phase 2
+                       │
+                       ▼
+           ┌───────────────────────┐
+           │  Jev Triage Gate      │
+           │  Choice: scam | legit │
+           │  + confidence score   │
+           └───────┬───────┬───────┘
+                    │       │
+        high confidence   low confidence
+        (either class)    / borderline
+                    │       │
+                    ▼       ▼
+          skip Phase 3   Phase 3 (Claude)
+          use Jev score  full reasoning +
+          as final input explanation
+```
+
+Rationale: most submissions are not borderline — Jev can resolve the easy majority at a fraction of Claude's cost/latency, reserving the expensive Phase 3 call (and its explanation text) for cases that actually need reasoning. Confidence threshold TBD from eval data.
+
+**Explicit non-goal**: Jev does not replace Phase 3. It cannot produce the plain-English explanation shown to users — that's structurally out of scope for a numbers-only classifier. It only gates whether Phase 3 runs.
+
+---
+
+## 10. Security Baseline
 
 - FastAPI backend URL never exposed to the browser (Next.js proxy)
 - All DB credentials held exclusively by Railway/FastAPI — Supabase RLS enforced

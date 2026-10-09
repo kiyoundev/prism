@@ -115,7 +115,7 @@ The final score is a weighted combination of all three phase scores. Every submi
 - Input: Phase 0 `artifacts{}` + Phase 1 `rule_reasons[]` as feature context.
 - TF-IDF vectorization (`scikit-learn TfidfVectorizer`) on Phase 0 tokens — weights keywords by frequency in message vs. corpus.
 - NLTK `SentimentIntensityAnalyzer` produces urgency/negativity signal as secondary feature.
-- Naive Bayes classifier (baseline); serialized to disk after training, loaded at startup.
+- Naive Bayes classifier (baseline); serialized to disk after training, loaded at startup. Logistic regression is trained on the same split and replaces it only if it wins on scam-class recall/F1 or calibration (see `overview.md`, Stage 3 — Model selection).
 - Training corpus: UCI SMS Spam Collection (~5.5k labeled ham/spam messages).
 - Output: `ml_score [0,1]`, `ml_details{}` (TF-IDF feature weights, sentiment score).
 
