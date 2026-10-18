@@ -619,7 +619,7 @@ Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], thre
 
 ---
 
-## [ ] Issue #18 — `extractor.py`: wire Phase 0 into `artifacts{}` bundle
+## [✅] Issue #18 — `extractor.py`: wire Phase 0 into `artifacts{}` bundle
 
 **Type:** feat / AFK  
 **Estimate:** ~1h  
@@ -640,12 +640,12 @@ Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], thre
 
 ### Acceptance criteria
 
-- [ ] `extract(text)` returns a dict with all six keys
-- [ ] `extracted_urls` contains URLs from the raw text (not normalized)
-- [ ] `normalized_text` passes through the full normalization pipeline
-- [ ] `tokens` and `ngrams` are derived from `normalized_text`
-- [ ] `brand_slug` is `None` and `category` is `"unknown"` until #19/#20 wire in classification
-- [ ] Raises `ValueError` for empty or whitespace-only input
+- [x] `extract(text)` returns a dict with all six keys
+- [x] `extracted_urls` contains URLs from the raw text (not normalized)
+- [x] `normalized_text` passes through the full normalization pipeline
+- [x] `tokens` and `ngrams` are derived from `normalized_text`
+- [x] `brand_slug` is `None` and `category` is `"unknown"` until #19/#20 wire in classification
+- [x] Raises `ValueError` for empty or whitespace-only input
 
 ---
 
