@@ -20,7 +20,7 @@ backend/venv
 **/*.pyo
 
 # next.js
-/.next/
+**/.next/
 /out/
 
 # production
