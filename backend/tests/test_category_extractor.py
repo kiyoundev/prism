@@ -1,5 +1,5 @@
 import pytest
-from backend.app.core.rules.category_extractor import normalize
+from app.core.rules.category_extractor import normalize
 
 @pytest.mark.normalize
 def test_normalize_strips_accents():
