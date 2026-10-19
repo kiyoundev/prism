@@ -18,6 +18,7 @@ backend/venv
 **/__pycache__/
 **/*.pyc
 **/*.pyo
+**/.ruff_cache/
 
 # next.js
 **/.next/
