@@ -17,7 +17,9 @@ def get_ngrams(tokens: list[str]) -> list[str]:
     return _ngrams(tokens, 2) + _ngrams(tokens, 3)
 
 
-def fuzzy_match(tokens: list[str], candidates: list[str], threshold: int = 80) -> list[str]:
+def fuzzy_match(
+    tokens: list[str], candidates: list[str], threshold: int = 80
+) -> list[str]:
     phrases_by_len: dict[int, list[str]] = {}
     for token in tokens:
         phrases_by_len.setdefault(1, []).append(token)

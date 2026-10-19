@@ -1,4 +1,3 @@
-
 from app.core.preprocessing.url_extractor import extract_urls
 
 
@@ -6,7 +5,9 @@ from app.core.preprocessing.url_extractor import extract_urls
 
 
 def test_protocol_https():
-    assert extract_urls("Click here: https://example.com/path") == ["https://example.com/path"]
+    assert extract_urls("Click here: https://example.com/path") == [
+        "https://example.com/path"
+    ]
 
 
 def test_protocol_http():
@@ -25,7 +26,9 @@ def test_bare_domain_with_path():
 
 
 def test_bare_domain_no_path():
-    assert extract_urls("Go to manage-account-detail.com") == ["manage-account-detail.com"]
+    assert extract_urls("Go to manage-account-detail.com") == [
+        "manage-account-detail.com"
+    ]
 
 
 # --- Multiple URLs ---
@@ -107,7 +110,9 @@ def test_leading_dot():
 
 def test_trailing_at_scam():
     # Real corpus: "See .crasecurecadeposit.com@Expires 29-01-25"
-    result = extract_urls("Your Hst-Ref#76577 for $435 is now ready. See .crasecurecadeposit.com@Expires 29-01-25.")
+    result = extract_urls(
+        "Your Hst-Ref#76577 for $435 is now ready. See .crasecurecadeposit.com@Expires 29-01-25."
+    )
     assert result == ["crasecurecadeposit.com"]
 
 

@@ -8,7 +8,14 @@ from app.core.preprocessing.extractor import extract
 
 def test_extract_returns_all_keys():
     result = extract("Your package is ready")
-    assert set(result.keys()) == {"extracted_urls", "normalized_text", "tokens", "ngrams", "brand_slug", "category"}
+    assert set(result.keys()) == {
+        "extracted_urls",
+        "normalized_text",
+        "tokens",
+        "ngrams",
+        "brand_slug",
+        "category",
+    }
 
 
 def test_extract_placeholders():

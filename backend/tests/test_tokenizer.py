@@ -135,12 +135,20 @@ def test_fuzzy_match_realistic_candidates():
     # candidates built the same way the brand extractor will:
     # name field always included, aliases appended if non-empty
     candidates = [
-        "Canada Post", "poste canada", "canada post",
-        "Purolator", "puro",
-        "FedEx",                                     # aliases is [] — name only
-        "UPS", "myups", "united parcel service",
-        "USPS", "united states postal service", "us postal service",
-        "DHL", "dhl express",
+        "Canada Post",
+        "poste canada",
+        "canada post",
+        "Purolator",
+        "puro",
+        "FedEx",  # aliases is [] — name only
+        "UPS",
+        "myups",
+        "united parcel service",
+        "USPS",
+        "united states postal service",
+        "us postal service",
+        "DHL",
+        "dhl express",
     ]
     # obfuscated "canada post" — accent substitution
     assert "canada post" in fuzzy_match(tokenize("cañada post delivery"), candidates)

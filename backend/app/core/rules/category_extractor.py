@@ -48,28 +48,29 @@ def setup_nltk_data():
     nltk.data.path.append(NLTK_DATA_DIR)
     # Download required corpora if missing
     try:
-        nltk.data.find('corpora/wordnet.zip')
+        nltk.data.find("corpora/wordnet.zip")
     except LookupError:
         print(f"Downloading NLTK 'wordnet' to {NLTK_DATA_DIR}...")
-        nltk.download('wordnet', download_dir=NLTK_DATA_DIR)
+        nltk.download("wordnet", download_dir=NLTK_DATA_DIR)
     try:
-        nltk.data.find('corpora/omw-1.4.zip')
+        nltk.data.find("corpora/omw-1.4.zip")
     except LookupError:
         print(f"Downloading NLTK 'omw-1.4' to {NLTK_DATA_DIR}...")
-        nltk.download('omw-1.4', download_dir=NLTK_DATA_DIR)
+        nltk.download("omw-1.4", download_dir=NLTK_DATA_DIR)
 
 
 setup_nltk_data()
 
 
 def extract_url(text: str) -> str:
-  urls: list[str] = []
-  def _protect(match: re.Match[str]) -> str:
-      urls.append(match.group(0))
-      return f"URLTOKEN{len(urls)-1}"  
-  url_protected = URL_PATTERN.sub(_protect, text)
-  print (url_protected)
-    
+    urls: list[str] = []
+
+    def _protect(match: re.Match[str]) -> str:
+        urls.append(match.group(0))
+        return f"URLTOKEN{len(urls) - 1}"
+
+    url_protected = URL_PATTERN.sub(_protect, text)
+    print(url_protected)
 
 
 def normalize(text: str) -> str:
@@ -86,7 +87,7 @@ def normalize(text: str) -> str:
 
     def _protect(match: re.Match[str]) -> str:
         urls.append(match.group(0))
-        return f"URLTOKEN{len(urls)-1}"
+        return f"URLTOKEN{len(urls) - 1}"
 
     def _restore(match: re.Match[str]) -> str:
         return urls[int(match.group(1))]
@@ -97,20 +98,24 @@ def normalize(text: str) -> str:
     # Remove punctuation
     punct_stripped = re.sub(rf"[{re.escape(string.punctuation)}]", " ", url_protected)
     # Remove extra whitespace
-    whitespace_cleaned = re.sub(r'\s+', ' ', punct_stripped).strip()
+    whitespace_cleaned = re.sub(r"\s+", " ", punct_stripped).strip()
     # Unicode normalization
-    normalized = unicodedata.normalize('NFKD', whitespace_cleaned)
+    normalized = unicodedata.normalize("NFKD", whitespace_cleaned)
     # Remove homoglyphs before ASCII encoding
     homoglyph_flat = unidecode(normalized)
     # Encode to ASCII, ignoring non-ASCII characters
-    encoded = homoglyph_flat.encode('ascii', 'ignore').decode('ascii')
+    encoded = homoglyph_flat.encode("ascii", "ignore").decode("ascii")
     return re.sub(r"URLTOKEN(\d+)", _restore, encoded)
+
 
 def tokenize(text: str) -> list[str]:
     word_tokenizer = RegexpTokenizer(r"[a-z0-9]+")
     return word_tokenizer.tokenize(text)
 
-def build_brand_index(brands_json: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Dict[str, Any]]:
+
+def build_brand_index(
+    brands_json: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, Dict[str, Any]]:
     """
     Returns:
       brand_index: {
@@ -144,17 +149,16 @@ def build_brand_index(brands_json: Dict[str, List[Dict[str, Any]]]) -> Dict[str,
         }
     return brand_index
 
-# def extract_category(text: str) -> str:
-    # lemmatizer = WordNetLemmatizer()
-    # normalized_text = normalize(text)
-    # tokens = tokenize(normalized_text)
-    # token_set = set(lemmatizer.lemmatize(token) for token in tokens)
-    # print(tokens)
-    # print(token_set)
 
+# def extract_category(text: str) -> str:
+# lemmatizer = WordNetLemmatizer()
+# normalized_text = normalize(text)
+# tokens = tokenize(normalized_text)
+# token_set = set(lemmatizer.lemmatize(token) for token in tokens)
+# print(tokens)
+# print(token_set)
 
 
 if __name__ == "__main__":
     # setup_nltk_data()
     extract_url(SAMPLE_TEXT)
-

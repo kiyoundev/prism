@@ -24,6 +24,7 @@ app.add_middleware(
 def health():
     return {"status": "ok"}
 
+
 # TODO: add API key middleware — validate X-API-Key header on all /v1/* routes
 # against INTERNAL_API_KEY env var. Next.js proxy route sets this header.
 # Use FastAPI dependencies or middleware; return 401 if missing or invalid.
