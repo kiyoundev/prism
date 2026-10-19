@@ -1,4 +1,3 @@
-import pytest
 
 from app.core.preprocessing.url_extractor import extract_urls
 

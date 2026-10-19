@@ -27,9 +27,7 @@ from unidecode import unidecode
 import string
 import nltk
 from nltk.tokenize import RegexpTokenizer
-from nltk.stem import WordNetLemmatizer
-from typing import List, Dict, Any, Tuple
-import tldextract
+from typing import List, Dict, Any
 import os
 
 from scripts.json_loader import load_json

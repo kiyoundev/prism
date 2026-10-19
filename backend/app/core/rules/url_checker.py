@@ -1,8 +1,6 @@
 import re
 import tldextract
-import socket
 from typing import List, Dict, Any, Optional
-from urllib.parse import urlparse
 
 # Suspicious TLDs often used in scams
 SUSPICIOUS_TLDS = {
@@ -60,7 +58,7 @@ class URLChecker:
             
             # Helper for full domain check (e.g. tracking.purolator.com)
             registered_domain = f"{parsed.domain}.{parsed.suffix}"
-        except Exception as e:
+        except Exception:
             report["risk_score"] = 0.5
             report["signals"].append("MALFORMED_URL")
             return report
