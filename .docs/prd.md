@@ -102,13 +102,13 @@ The final score is a weighted combination of all three phase scores. Every submi
 - Normalization order: lowercase → punctuation strip → Unicode NFKD (`unicodedata`) → homoglyph flatten (`unidecode`) → zero-width character removal.
 - Tokenization produces word tokens; bi-gram and tri-gram sequences are generated for phrase matching.
 - Fuzzy matching (`rapidfuzz`) catches near-miss brand names and keyword variants.
-- Brand detection uses longest-match against `brand_variants.json`; keyword fallback scores against `category_keywords.json`; URL domain checked against `allowed_domains.json`.
-- Resolution priority: URL brand (confidence 1.0) → text brand (0.9) → keyword density above threshold (0.8) → `unknown` (0.0).
-- Output: `artifacts{}` — `extracted_urls[]`, `normalized_text`, `tokens[]`, `ngrams[]`, `brand_slug`, `category`.
+- Brand detection matches aliases against the token list directly (exact spaced, then exact joined, then fuzzy fallback ≥85 for aliases 6+ chars); domains live inside `brand_variants.json` per brand. Keyword fallback (not yet implemented) will score against `category_keywords.json`.
+- Resolution priority: URL brand (confidence 1.0) → text brand exact (0.9) → text brand fuzzy (0.8) → keyword density above threshold (0.8, #20, not yet implemented) → `unknown` (0.0).
+- Output: `artifacts{}` — `extracted_urls[]`, `normalized_text`, `tokens[]`, `ngrams[]`, `brand_slug`, `category`, `text_brand_slug`, `url_brand_slug`, `brand_match_type`, `brand_confidence`.
 
 ### Phase 1 — Rule Engine
 - Rule signals: URL analysis (typosquatting, suspicious TLDs, shorteners, brand-domain mismatch), homoglyph/zero-width detection, urgency/authority/scarcity patterns, financial structuring (gift cards, crypto, specific amounts), channel shifting (WhatsApp/Telegram/Signal), formatting abuse (emoji, all-caps, excessive punctuation).
-- Config files (`brand_variants.json`, `category_keywords.json`, `allowed_domains.json`) load from disk at FastAPI startup — no DB tables required for rule definitions in MVP.
+- Config files (`brand_variants.json`, `category_keywords.json`) load from disk at FastAPI startup — no DB tables required for rule definitions in MVP.
 - Output: `rule_score [0,1]`, `rule_reasons[]` (machine code + display string per reason).
 
 ### Phase 2 — ML Classifier

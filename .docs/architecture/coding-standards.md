@@ -20,7 +20,7 @@
 - Pydantic schemas: `backend/app/schemas/<resource>.py` — one file per domain object
 - SQLAlchemy models: `backend/app/models/<resource>.py`
 - Pipeline logic: `backend/app/core/scoring/pipeline.py` orchestrates Phase 1 → 2 → 3
-- Config files (brand_variants, category_keywords, allowed_domains): `backend/app/core/rules/config/` — loaded at startup, never written at runtime
+- Config files (brand_variants, category_keywords): `backend/app/core/rules/config/` — loaded at startup, never written at runtime
 - Python style: black formatting, ruff linting, type hints on all function signatures
 
 ## 4. UI Implementation Rules

@@ -1,164 +1,210 @@
-"""
-Category extraction pipeline checklist:
-- Normalize first
-  • Lowercase, strip punctuation, collapse whitespace.
-  • Apply Unicode normalization + homoglyph handling (unicodedata.normalize, unidecode, unhomoglyph).
-  • Remove accents so variants like “délivery” still match “delivery”.
-- Tokenize + optional lemmatize/stem
-  • Use a simple tokenizer (spaCy, NLTK/natural, regex splitter).
-  • Lemmatization/stemming collapses inflections (“deliveries” → “delivery”).
-- Build n-grams / phrase windows
-  • Generate 2–5 word windows to catch cues like “return to sender” before single tokens.
-- Match and score
-  • Compare phrase windows and single tokens against category keyword lists.
-  • Weight phrases higher than single tokens (e.g., +1.0 vs +0.5) and log hits as evidence.
-- Post-process
-  • Choose the highest-scoring category above a threshold; break ties by phrase weight.
-  • If nothing clears the bar, fall back to None/"generic".
-- Enhancements
-  • Optional fuzzy/Levenshtein for short cues (“otp”, “pin”) gated by context.
-  • Keep JSON synonyms updated (e.g., “reschedule”, “dispatch” for delivery).
-  • Optionally blend in a lightweight classifier (e.g., Naive Bayes) and require agreement for ambiguous cases.
-"""
+import json
+from functools import lru_cache
+from pathlib import Path
 
-import re
-import unicodedata
-from unidecode import unidecode
-import string
-import nltk
-from nltk.tokenize import RegexpTokenizer
-from typing import List, Dict, Any
-import os
+import tldextract
+from rapidfuzz import fuzz
 
-from scripts.json_loader import load_json
+from app.core.preprocessing.normalizer import normalize
+from app.core.preprocessing.tokenizer import fuzzy_match, tokenize
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../../../.."))
-NLTK_DATA_DIR = os.path.join(PROJECT_ROOT, "backend/data/nltk_data")
+CONFIG_PATH = Path(__file__).parent / "config" / "brand_variants.json"
+REQUIRED_FIELDS = ("slug", "name", "domains")
 
-URL_PATTERN = re.compile(r"https?://[^\s]+")
-SEED_MESSAGES = load_json("backend/data/seed_scams.json")
-BRANDS = load_json("backend/app/core/rules/config/brand_variants.json")
-SAMPLE_TEXT = SEED_MESSAGES[0]["text"]
-
-nltk.data.path.append(NLTK_DATA_DIR)
+MIN_FUZZY_ALIAS_LEN = 6
+BRAND_FUZZY_THRESHOLD = 85
+BRAND_CONFIDENCE = {"url": 1.0, "exact": 0.9, "fuzzy": 0.8}
 
 
-def setup_nltk_data():
-    nltk.data.path.append(NLTK_DATA_DIR)
-    # Download required corpora if missing
-    try:
-        nltk.data.find("corpora/wordnet.zip")
-    except LookupError:
-        print(f"Downloading NLTK 'wordnet' to {NLTK_DATA_DIR}...")
-        nltk.download("wordnet", download_dir=NLTK_DATA_DIR)
-    try:
-        nltk.data.find("corpora/omw-1.4.zip")
-    except LookupError:
-        print(f"Downloading NLTK 'omw-1.4' to {NLTK_DATA_DIR}...")
-        nltk.download("omw-1.4", download_dir=NLTK_DATA_DIR)
+def _alias_forms(raw: str) -> dict:
+    tokens = tuple(tokenize(normalize(raw)))
+    return {"tokens": tokens, "joined": "".join(tokens)}
 
 
-setup_nltk_data()
+def _load_brands(data: dict) -> list[dict]:
+    brands = []
+    seen_slugs: set[str] = set()
+
+    for category, entries in data.items():
+        for entry in entries:
+            missing = [field for field in REQUIRED_FIELDS if field not in entry]
+            if missing:
+                raise ValueError(
+                    f"brand_variants.json: entry in '{category}' missing {missing}: {entry}"
+                )
+
+            slug = entry["slug"]
+            if slug in seen_slugs:
+                raise ValueError(f"brand_variants.json: duplicate slug '{slug}'")
+            seen_slugs.add(slug)
+
+            aliases_raw = entry.get("aliases", [])
+            if not all(isinstance(alias, str) for alias in aliases_raw):
+                raise ValueError(
+                    f"brand_variants.json: '{slug}' aliases must be strings"
+                )
+
+            alias_sources = {*aliases_raw, entry["name"]}
+            aliases = [
+                form
+                for form in (_alias_forms(alias) for alias in alias_sources)
+                if form["tokens"]
+            ]
+
+            brands.append(
+                {
+                    "slug": slug,
+                    "name": entry["name"],
+                    "category": category,
+                    "aliases": aliases,
+                    "domains": set(entry["domains"]),
+                }
+            )
+
+    return brands
 
 
-def extract_url(text: str) -> str:
-    urls: list[str] = []
-
-    def _protect(match: re.Match[str]) -> str:
-        urls.append(match.group(0))
-        return f"URLTOKEN{len(urls) - 1}"
-
-    url_protected = URL_PATTERN.sub(_protect, text)
-    print(url_protected)
-
-
-def normalize(text: str) -> str:
-    """
-    Normalize text for category matching:
-    - Lowercase
-    - Remove extra whitespace
-    - Handle Unicode normalization
-    - Remove homoglyphs before ASCII encoding
-    - Encode to ASCII, ignoring non-ASCII characters
-    - Preserve URLs by masking them temporarily
-    """
-    urls: list[str] = []
-
-    def _protect(match: re.Match[str]) -> str:
-        urls.append(match.group(0))
-        return f"URLTOKEN{len(urls) - 1}"
-
-    def _restore(match: re.Match[str]) -> str:
-        return urls[int(match.group(1))]
-
-    # Lowercase
-    lowered = text.lower()
-    url_protected = URL_PATTERN.sub(_protect, lowered)
-    # Remove punctuation
-    punct_stripped = re.sub(rf"[{re.escape(string.punctuation)}]", " ", url_protected)
-    # Remove extra whitespace
-    whitespace_cleaned = re.sub(r"\s+", " ", punct_stripped).strip()
-    # Unicode normalization
-    normalized = unicodedata.normalize("NFKD", whitespace_cleaned)
-    # Remove homoglyphs before ASCII encoding
-    homoglyph_flat = unidecode(normalized)
-    # Encode to ASCII, ignoring non-ASCII characters
-    encoded = homoglyph_flat.encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"URLTOKEN(\d+)", _restore, encoded)
+def _domain_lookup(
+    brands: list[dict], extract_domain: tldextract.TLDExtract
+) -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for brand in brands:
+        for domain in brand["domains"]:
+            registered = extract_domain(domain).registered_domain
+            if registered in lookup:
+                raise ValueError(
+                    f"brand_variants.json: domain '{domain}' claimed by both "
+                    f"'{lookup[registered]}' and '{brand['slug']}'"
+                )
+            lookup[registered] = brand["slug"]
+    return lookup
 
 
-def tokenize(text: str) -> list[str]:
-    word_tokenizer = RegexpTokenizer(r"[a-z0-9]+")
-    return word_tokenizer.tokenize(text)
+@lru_cache(maxsize=1)
+def get_brand_index() -> dict:
+    with CONFIG_PATH.open(encoding="utf-8") as f:
+        data = json.load(f)
+
+    extract_domain = tldextract.TLDExtract(suffix_list_urls=())
+    brands = _load_brands(data)
+    domain_to_slug = _domain_lookup(brands, extract_domain)
+
+    return {
+        "brands": brands,
+        "domain_to_slug": domain_to_slug,
+        "extract_domain": extract_domain,
+    }
 
 
-def build_brand_index(
-    brands_json: Dict[str, List[Dict[str, Any]]],
-) -> Dict[str, Dict[str, Any]]:
-    """
-    Returns:
-      brand_index: {
-        slug: {
-          'name': 'Purolator',
-          'aliases': ['purolator', 'puro', ...],  # normalized strings
-          'alias_token_seqs': [['purolator'], ['puro'], ['united','parcel','service'], ...]
-        },
-        ...
-      }
-    """
-    brand_index = {}
-    for entry in brands_json.get("delivery", []):
-        slug = entry["slug"]
-        aliases = entry.get("aliases", [])
-        name = entry["name"]
-
-        all_aliases = set(normalize(alias) for alias in aliases)
-        all_aliases.add(normalize(name))
-
-        alias_token_seqs = []
-
-        for alias in all_aliases:
-            tokens = tokenize(alias)
-            alias_token_seqs.append(tokens)
-
-        brand_index[slug] = {
-            "name": name,
-            "aliases": list(all_aliases),
-            "alias_token_seqs": alias_token_seqs,
-        }
-    return brand_index
+def _match_url_brand(extracted_urls: list[str], index: dict) -> str | None:
+    for url in extracted_urls:
+        try:
+            registered = index["extract_domain"](url).registered_domain
+        except Exception:
+            continue
+        slug = index["domain_to_slug"].get(registered)
+        if slug:
+            return slug
+    return None
 
 
-# def extract_category(text: str) -> str:
-# lemmatizer = WordNetLemmatizer()
-# normalized_text = normalize(text)
-# tokens = tokenize(normalized_text)
-# token_set = set(lemmatizer.lemmatize(token) for token in tokens)
-# print(tokens)
-# print(token_set)
+def _match_exact_spaced(tokens: list[str], brands: list[dict]) -> str | None:
+    matches = []  # (alias_len, start, slug)
+    for brand in brands:
+        for alias in brand["aliases"]:
+            alias_tokens = alias["tokens"]
+            n = len(alias_tokens)
+            if n < 2:
+                continue
+            for start in range(len(tokens) - n + 1):
+                if tuple(tokens[start : start + n]) == alias_tokens:
+                    matches.append((n, start, brand["slug"]))
+
+    if not matches:
+        return None
+    matches.sort(key=lambda m: (-m[0], m[1]))
+    return matches[0][2]
 
 
-if __name__ == "__main__":
-    # setup_nltk_data()
-    extract_url(SAMPLE_TEXT)
+def _match_exact_joined(tokens: list[str], brands: list[dict]) -> str | None:
+    for token in tokens:
+        for brand in brands:
+            for alias in brand["aliases"]:
+                if alias["joined"] and alias["joined"] == token:
+                    return brand["slug"]
+    return None
+
+
+def _fuzzy_alias_candidates(brands: list[dict], min_words: int) -> list[tuple]:
+    candidates = []  # (len(joined), alias, slug)
+    for brand in brands:
+        for alias in brand["aliases"]:
+            if len(alias["tokens"]) < min_words:
+                continue
+            if len(alias["joined"]) >= MIN_FUZZY_ALIAS_LEN:
+                candidates.append((len(alias["joined"]), alias, brand["slug"]))
+    candidates.sort(key=lambda c: -c[0])
+    return candidates
+
+
+def _match_fuzzy_joined(tokens: list[str], brands: list[dict]) -> str | None:
+    for _, alias, slug in _fuzzy_alias_candidates(brands, min_words=1):
+        for token in tokens:
+            if fuzz.ratio(alias["joined"], token) >= BRAND_FUZZY_THRESHOLD:
+                return slug
+    return None
+
+
+def _match_fuzzy_spaced(tokens: list[str], brands: list[dict]) -> str | None:
+    candidates = _fuzzy_alias_candidates(brands, min_words=2)
+    spaced_to_slug = {" ".join(alias["tokens"]): slug for _, alias, slug in candidates}
+    ordered_strings = list(spaced_to_slug.keys())
+
+    matched = fuzzy_match(tokens, ordered_strings, threshold=BRAND_FUZZY_THRESHOLD)
+    return spaced_to_slug[matched[0]] if matched else None
+
+
+def _category_for_slug(slug: str, brands: list[dict]) -> str:
+    return next(brand["category"] for brand in brands if brand["slug"] == slug)
+
+
+def detect_brand(artifacts: dict) -> dict:
+    index = get_brand_index()
+    brands = index["brands"]
+    tokens = artifacts["tokens"]
+
+    url_brand_slug = _match_url_brand(artifacts["extracted_urls"], index)
+
+    exact_slug = _match_exact_spaced(tokens, brands) or _match_exact_joined(
+        tokens, brands
+    )
+    if exact_slug:
+        text_brand_slug = exact_slug
+        text_match_type = "exact"
+    else:
+        fuzzy_slug = _match_fuzzy_joined(tokens, brands) or _match_fuzzy_spaced(
+            tokens, brands
+        )
+        text_brand_slug = fuzzy_slug
+        text_match_type = "fuzzy" if fuzzy_slug else None
+
+    if url_brand_slug:
+        brand_slug = url_brand_slug
+        brand_match_type = "url"
+    elif text_brand_slug:
+        brand_slug = text_brand_slug
+        brand_match_type = text_match_type
+    else:
+        brand_slug = None
+        brand_match_type = None
+
+    category = _category_for_slug(brand_slug, brands) if brand_slug else "unknown"
+
+    return {
+        "brand_slug": brand_slug,
+        "category": category,
+        "text_brand_slug": text_brand_slug,
+        "url_brand_slug": url_brand_slug,
+        "brand_match_type": brand_match_type,
+        "brand_confidence": BRAND_CONFIDENCE.get(brand_match_type, 0.0),
+    }

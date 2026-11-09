@@ -77,14 +77,15 @@ Purpose: normalize the raw SMS and extract structured artifacts consumed by all 
 1. **URL Extraction** — pull all URLs from raw text before normalization distorts them
 2. **Normalization** — lowercase conversion, punctuation stripping, Unicode NFKD normalization, homoglyph and zero-width character flattening (`unidecode`, `unicodedata`)
 3. **Tokenization, N-grams & Fuzzy Matching** — split into word tokens; generate bi-gram and tri-gram sequences for phrase detection; apply fuzzy matching (edit-distance) to catch near-miss brand names and keyword variants that exact matching would miss
-4. **Brand & Category Extraction** — match normalized tokens against `brand_variants.json` (longest-match first); fall back to keyword density scoring against `category_keywords.json`; check URL domains against `allowed_domains.json`
+4. **Brand & Category Extraction** — match tokens against `brand_variants.json` aliases (exact spaced, then exact joined, then fuzzy fallback ≥85 for aliases 6+ chars); check link domains against each brand's `domains`, also in `brand_variants.json`; fall back to keyword density scoring against `category_keywords.json` (#20, not yet implemented)
 
 Phase 0 outputs (the `artifacts{}` bundle passed to all subsequent phases):
 - `extracted_urls[]`
 - `normalized_text`
 - `tokens[]`, `ngrams[]`
-- `brand_slug` (or `null`)
-- `category` (`delivery | banking | tax | ... | unknown`)
+- `brand_slug` (or `null`), `text_brand_slug`, `url_brand_slug`
+- `category` (`delivery | banking | government | ... | unknown`)
+- `brand_match_type` (`url | exact | fuzzy | None`), `brand_confidence`
 
 **Post-MVP (Jev):** an optional step can add Jev's category, brand and urgency/threat probabilities to `artifacts{}` under a `jev` key, alongside the keyword-based fields (issue #58, behind a config flag, after the #56 go/no-go). See `architecture.md`, section 9.
 
@@ -116,7 +117,7 @@ Phase 1 outputs:
 - `rule_reasons[]` (machine-readable codes + display strings)
 - Extracted artifacts: detected URLs, brand slug, category, flags
 
-Config files (`brand_variants.json`, `category_keywords.json`, `allowed_domains.json`) live in `backend/app/core/rules/config/` and load at FastAPI startup. No DB tables required for rule definitions until an admin UI is needed.
+Config files (`brand_variants.json`, `category_keywords.json`) live in `backend/app/core/rules/config/` and load at FastAPI startup. No DB tables required for rule definitions until an admin UI is needed.
 
 ### Phase 2 — ML Classifier (FastAPI)
 Inputs: Phase 0 `artifacts{}` (normalized text, tokens, n-grams) + Phase 1 rule hits.

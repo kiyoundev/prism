@@ -9,6 +9,7 @@ from unidecode import unidecode
 # 3. Unicode NFKD normalization (`unicodedata.normalize('NFKD', text)`) — reduces accented chars to base form (e.g., `é` → `e`)
 # 4. Homoglyph flattening (`unidecode`) — transliterates Cyrillic/mathematical substitutes to ASCII equivalents
 # 5. Zero-width character removal (`​`, `‌`, `‍`, `﻿`, etc.) — used by scammers to break keyword matching
+# 6. Whitespace collapsing — runs of whitespace (including from URL-stripping and multi-line text) become a single space
 
 
 def normalize(text: str) -> str:
@@ -30,5 +31,8 @@ def normalize(text: str) -> str:
 
     # zero-width character removal
     text = _ZERO_WIDTH_RE.sub("", text)
+
+    # whitespace collapsing
+    text = re.sub(r"\s+", " ", text).strip()
 
     return text

@@ -1,9 +1,20 @@
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from app.config import DATABASE_URL, ANTHROPIC_API_KEY, INTERNAL_API_KEY  # noqa: F401 — validates env vars at startup
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+from app.core.rules.category_extractor import get_brand_index
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    get_brand_index()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # Allowed origins: comma-separated list via env var in production (Railway),
 # falls back to localhost for local dev.

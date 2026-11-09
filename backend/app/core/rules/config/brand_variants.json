@@ -40,5 +40,39 @@
       "aliases": ["dhl express"],
       "domains": ["dhl.com", "dhl.ca"]
     }
+  ],
+  "banking": [
+    {
+      "slug": "rbc",
+      "name": "RBC",
+      "aliases": ["royal bank of canada"],
+      "domains": ["rbc.com"]
+    },
+    {
+      "slug": "td",
+      "name": "TD",
+      "aliases": ["td bank", "td canada trust", "toronto-dominion"],
+      "domains": ["td.com"]
+    },
+    {
+      "slug": "scotiabank",
+      "name": "Scotiabank",
+      "aliases": ["bank of nova scotia"],
+      "domains": ["scotiabank.com"]
+    }
+  ],
+  "government": [
+    {
+      "slug": "cra",
+      "name": "CRA",
+      "aliases": ["canada revenue agency"],
+      "domains": ["cra-arc.gc.ca"]
+    },
+    {
+      "slug": "government-of-canada",
+      "name": "Government of Canada",
+      "aliases": ["gouvernement du canada"],
+      "domains": ["canada.ca"]
+    }
   ]
 }

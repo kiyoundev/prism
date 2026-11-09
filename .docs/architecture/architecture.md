@@ -163,8 +163,8 @@ The pipeline is **sequential, not parallel**. Each phase enriches the context pa
 - Extracts all URLs before normalization
 - Normalizes: lowercase, punctuation stripping, Unicode NFKD, homoglyph and zero-width character flattening
 - Tokenizes text; generates bi-gram and tri-gram sequences; applies fuzzy matching (edit-distance) for near-miss brand/keyword detection
-- Extracts brand slug and category (brand-first via `brand_variants.json`, keyword fallback, URL domain check via `allowed_domains.json`)
-- Output: `artifacts{}` — extracted URLs, normalized text, tokens, n-grams, brand slug, category
+- Extracts brand slug and category (brand-first via `brand_variants.json`, which also holds each brand's canonical `domains`; keyword fallback via `category_keywords.json`)
+- Output: `artifacts{}` — extracted URLs, normalized text, tokens, n-grams, brand slug, category, text brand slug, URL brand slug, brand match type, brand confidence
 
 ### Phase 1 — Rule Engine
 - Input: Phase 0 `artifacts{}`
@@ -233,7 +233,7 @@ backend/app/
 │   ├── rules/               # Phase 1: rule engine
 │   │   ├── category_extractor.py
 │   │   ├── url_checker.py
-│   │   └── config/          # JSON config files (brand_variants, category_keywords, allowed_domains)
+│   │   └── config/          # JSON config files (brand_variants, category_keywords)
 │   ├── ml/                  # Phase 2: NLTK classifier + TF-IDF
 │   │   └── classifier.py
 │   └── scoring/             # Pipeline orchestration + combiner
@@ -248,7 +248,7 @@ backend/app/
 ```
 
 ### Config loading
-Rule engine config (`brand_variants.json`, `category_keywords.json`, `allowed_domains.json`) loads from disk at FastAPI startup. No database tables required for rule definitions until an admin UI is needed.
+Rule engine config (`brand_variants.json`, `category_keywords.json`) loads from disk at FastAPI startup. No database tables required for rule definitions until an admin UI is needed.
 
 ### Dependency chain
 ```

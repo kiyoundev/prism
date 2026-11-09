@@ -43,6 +43,7 @@ All issues are AFK unless marked HITL (requires manual action outside the codeba
 ```
 #18 — artifacts{} bundle (from Phase 0)
   ├── #19 — category_extractor: brand detection
+  │     ├── #19.5 — category_extractor: lookalike-digit folding (short aliases)  [optional, not blocking #20/#26]
   │     └── #20 — category_extractor: keyword scoring
   ├── #21 — url_checker: allowlist/denylist/TLD
   │     └── #22 — url_checker: brand-domain mismatch
@@ -607,7 +608,7 @@ These outputs are consumed by both the brand/category extractor and the Phase 2 
 
 ### What to build
 
-Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], threshold: int = 85) -> list[str]` function that uses `rapidfuzz` to find near-miss matches between normalized text and a list of candidate strings (brand names, keyword variants). This catches obfuscated brand mentions that exact matching would miss (e.g., `"Cañada Post"` → `"Canada Post"`, `"Amaz0n"` → `"Amazon"`).
+Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], threshold: int = 80) -> list[str]` function that uses `rapidfuzz` to find near-miss matches between normalized text and a list of candidate strings (brand names, keyword variants). This catches obfuscated brand mentions that exact matching would miss (e.g., `"Cañada Post"` → `"Canada Post"`, `"Amaz0n"` → `"Amazon"`). Default stays 80, not 85 — #19's own examples (`amaz0n` scores 83, `f3dex` scores 80) would fail a default of 85; brand detection in #19 passes its own threshold of 85 explicitly where it needs the stricter bar.
 
 ### Acceptance criteria
 
@@ -653,27 +654,63 @@ Extend `tokenizer.py` with a `fuzzy_match(text: str, candidates: list[str], thre
 
 ---
 
-## [ ] Issue #19 — `category_extractor.py`: brand detection
+## [✅] Issue #19 — `category_extractor.py`: brand detection
 
 **Type:** feat / AFK  
-**Estimate:** ~2h  
+**Estimate:** ~2h (actual: ~4.5h — scope grew with fuzzy matching, config migration, wiring and doc fixes)  
 **Blocked by:** #18  
 **Docs:** `.docs/rule_engine.md` — Category Extraction Strategy: Brand Detection
 
 ### What to build
 
-Implement brand detection in `backend/app/core/rules/category_extractor.py`. At startup, load `brand_variants.json` (maps brand slugs to lists of aliases). Given `artifacts{}`, scan the tokens and n-grams for brand aliases using a longest-match-first strategy. A multi-word alias (e.g., `"Canada Post"`) must win over a single-word alias (e.g., `"Canada"`). On match, write `brand_slug` and the resolved `category` back into `artifacts{}` and return immediately — no keyword scoring needed.
+Implement brand detection in `backend/app/core/rules/category_extractor.py`. At FastAPI startup, call a cached, validated loader (`get_brand_index()`) that reads `brand_variants.json` (maps brand slugs to aliases **and** canonical `domains`, grouped by category — banking and government groups included). Given `artifacts{}`, match brand aliases against the **token list directly**, not `ngrams` (which cap at 2–3 words and would miss longer aliases like `"united states postal service"`), using a longest-match-first strategy: exact spaced sequence, then exact joined form (handles `Canada-Post` → single token `canadapost`), then a fuzzy fallback (threshold 85) for aliases 6+ characters (spaces removed). A multi-word alias (e.g., `"Canada Post"`) wins over a single-word alias (e.g., `"Canada"`).
 
-Also check the extracted URLs: if any URL's registered domain matches a brand's canonical domain in `allowed_domains.json`, that is a brand match with confidence 1.0.
+Also check the extracted URLs: if any URL's registered domain matches a brand's canonical domain — now inside `brand_variants.json`'s `domains` field; `allowed_domains.json` has been deleted — that is a brand match with confidence 1.0, and it wins over any text match.
+
+`detect_brand(artifacts) -> dict` is a pure function; `extract()` merges its fields into `artifacts{}`.
 
 ### Acceptance criteria
 
-- [ ] Text containing `"Canada Post"` resolves to `brand_slug="canada_post"`, `category="delivery"`
-- [ ] Text containing only `"Canada"` does not match `canada_post` (multi-word alias requires full phrase)
-- [ ] URL containing `canadapost.ca` resolves to `canada_post` regardless of text content
-- [ ] URL brand match takes priority over text brand match
-- [ ] `brand_variants.json` is loaded once at startup, not re-read per request
-- [ ] Returns without modification if no brand is detected
+- [x] Text containing `"Canada Post"` resolves to `brand_slug="canada-post"`, `category="delivery"`, `brand_match_type="exact"`, `brand_confidence=0.9` (slug is hyphenated, matching `brand_variants.json`)
+- [x] Text containing only `"Canada"` does not match `canada-post`
+- [x] A link on `canadapost.ca` resolves to `canada-post` regardless of text, with `brand_match_type="url"` and `brand_confidence=1.0`
+- [x] A URL brand match wins over a text brand match, and both `text_brand_slug` and `url_brand_slug` are kept in `artifacts{}`
+- [x] Space-collapsed forms match exactly: `Canada-Post`, `Canada.Post`, `CanadaPost` all resolve to `canada-post`
+- [x] Obfuscated long aliases match fuzzily at threshold 85: `canadap0st` resolves to `canada-post`, `brand_match_type="fuzzy"`, `brand_confidence=0.8`
+- [x] Aliases shorter than 6 characters (spaces removed) are never matched fuzzily: `pro` does not match `puro`
+- [x] A lookalike link such as `canadapost.ca.parcel-track.xyz` does not match Canada Post (registered domain is `parcel-track.xyz`)
+- [x] `brand_variants.json` is read once through a cached loader, validated at load, and also loaded at FastAPI startup; no import-time side effects and no `scripts` import
+- [x] `detect_brand(artifacts)` is a pure function; `extract()` merges its fields into `artifacts{}`
+- [x] With no brand detected, `brand_slug=None`, `category="unknown"`, `brand_match_type=None`, `brand_confidence=0.0`
+- [x] `allowed_domains.json` is deleted and its content lives in `brand_variants.json` (banking and government groups added; `canada.ca` under a government brand, not delivery)
+- [x] All existing tests still pass, new tests cover every criterion above, `ruff check` and `ruff format --check` are clean
+
+---
+
+## [ ] Issue #19.5 — `category_extractor.py`: lookalike-digit folding for short brand aliases
+
+**Type:** feat / AFK  
+**Estimate:** ~1h  
+**Blocked by:** #19  
+**Docs:** `.docs/rule_engine.md` — Category Extraction Strategy: Brand Detection
+
+### What to build
+
+#19 matches brand aliases of 6 or more characters (spaces removed) with exact matching first and fuzzy matching as a fallback. Aliases shorter than 6 characters (for example `ups`, `dhl`, `puro`, `td`, `cra`) are matched exactly only, because fuzzy scores on short words are unreliable (`puro` fuzzy-matches the common word `pro` at threshold 85). That leaves a gap: a digit-lookalike spelling such as `Up5` or `DHL` written with a zero is missed.
+
+Close the gap without fuzziness. Before matching **short aliases only**, fold common lookalike digits to letters on a copy of the token (`0→o`, `1→l`, `3→e`, `4→a`, `5→s`, `$→s`) and then match exactly. The folded copy is used only for short-alias matching and never replaces `artifacts["tokens"]` or `normalized_text`. Long aliases keep using the fuzzy fallback from #19.
+
+Folding runs **in addition to** the unfolded exact match, so a real token containing digits is never altered for other rules. Record the match type as `leet` in the brand match details so the rate of folded matches can be measured later.
+
+### Acceptance criteria
+
+- [ ] `up5` resolves to `ups` and `dh1` resolves to `dhl` (digit-folded exact match on short aliases)
+- [ ] A short alias is never matched fuzzily: `pro` does not match `puro`
+- [ ] Folding does not modify `artifacts["tokens"]` or `artifacts["normalized_text"]`
+- [ ] A token that exactly matches a short alias without folding still matches as `exact`, not `leet`
+- [ ] The fold map is a named constant or config value, not inlined in the matching logic
+- [ ] Brand detection results carry a match type of `exact`, `fuzzy`, `leet`, or `url`
+- [ ] Message-level false-match check: ordinary words containing folded digits (for example `5` or `4` in `top5`, `4you`) do not produce a brand match unless the folded token equals a short alias
 
 ---
 
@@ -715,7 +752,7 @@ Implement the keyword-based fallback in `category_extractor.py`. Load `category_
 
 `backend/app/core/rules/url_checker.py` — given a list of extracted URLs and the resolved `brand_slug`, check each URL against:
 
-1. **Allowlist** (`allowed_domains.json`): brand-specific canonical domains. A match clears URL suspicion for that brand.
+1. **Allowlist** (`brand_variants.json` `domains`, per brand): brand-specific canonical domains. A match clears URL suspicion for that brand.
 2. **Denylist**: known bad hosts, URL shorteners (bit.ly, tinyurl.com, etc.), previously-seen typosquats. A match is a strong risk signal.
 3. **Suspicious TLD heuristic**: flag TLDs commonly used in phishing (`.xyz`, `.top`, `.click`, `.tk`, `.ml`, `.ga`, `.cf`, `.gq`, free hosting TLDs).
 
@@ -725,7 +762,7 @@ Emit rule signals as `(code, display_string)` tuples to be collected by the rule
 
 ### Acceptance criteria
 
-- [ ] `https://canadapost.ca/track` with `brand_slug="canada_post"` produces no URL risk signals
+- [ ] `https://canadapost.ca/track` with `brand_slug="canada-post"` produces no URL risk signals
 - [ ] `https://bit.ly/x9k2p` produces a `url_shortener` signal
 - [ ] `https://myparcel.xyz` produces a `suspicious_tld` signal
 - [ ] A URL on a known denylist domain produces a `denylist_hit` signal
@@ -742,13 +779,13 @@ Emit rule signals as `(code, display_string)` tuples to be collected by the rule
 
 ### What to build
 
-Extend `url_checker.py` with brand-domain mismatch detection. If a brand was detected in the message text (e.g., `"Canada Post"`) but all extracted URLs belong to domains not in that brand's allowlist, emit a `brand_domain_mismatch` signal. This catches the core phishing pattern: impersonate a known brand in text while linking to an attacker-controlled domain.
+Extend `url_checker.py` with brand-domain mismatch detection. Read `artifacts["text_brand_slug"]` — the brand named in the message text, set by #19 — not `artifacts["brand_slug"]`, which may already reflect a URL match and would hide a text/URL disagreement. If `text_brand_slug` is set (e.g., `"Canada Post"` → `canada-post`) but all extracted URLs belong to domains outside that brand's canonical `domains` (in `brand_variants.json`), emit a `brand_domain_mismatch` signal. This catches the core phishing pattern: impersonate a known brand in text while linking to an attacker-controlled domain.
 
 ### Acceptance criteria
 
 - [ ] Message with `"Canada Post"` text and a URL on `canadapost.ca` produces no mismatch signal
 - [ ] Message with `"Canada Post"` text and a URL on `parcel-track.xyz` produces a `brand_domain_mismatch` signal
-- [ ] Mismatch signal is not emitted when `brand_slug` is `None`
+- [ ] Mismatch signal is not emitted when `text_brand_slug` is `None`
 - [ ] Mismatch signal is not emitted when there are no extracted URLs
 - [ ] Signal includes a display string naming the detected brand and the mismatched domain
 
@@ -1812,7 +1849,7 @@ Follow-ups from `.docs/architecture/architecture.md`, section 11. They harden th
 
 ### What to build
 
-Rules currently detect bad signals; an allowlist hit only "boosts confidence". Define explicit positive evidence in Phase 1: for example, a detected brand whose URLs are all on that brand's canonical domains (`brand_variants.json` `domains`, `allowed_domains.json`), no obfuscation, and no urgency or financial-structuring signals. Emit a `LEGIT_DOMAIN_MATCH`-style signal with a **negative** weight in the signal-weight config, so `rule_score` for a genuine Canada Post notice is clearly low (still clamped to `[0, 1]`). Positive evidence must never offset a strong negative signal such as brand-domain mismatch, punycode, or a denylist hit. Without it, legitimate transactional SMS drift into the middle score band and trigger unnecessary Claude calls.
+Rules currently detect bad signals; an allowlist hit only "boosts confidence". Define explicit positive evidence in Phase 1: for example, a detected brand whose URLs are all on that brand's canonical domains (`brand_variants.json` `domains`), no obfuscation, and no urgency or financial-structuring signals. Emit a `LEGIT_DOMAIN_MATCH`-style signal with a **negative** weight in the signal-weight config, so `rule_score` for a genuine Canada Post notice is clearly low (still clamped to `[0, 1]`). Positive evidence must never offset a strong negative signal such as brand-domain mismatch, punycode, or a denylist hit. Without it, legitimate transactional SMS drift into the middle score band and trigger unnecessary Claude calls.
 
 ### Acceptance criteria
 

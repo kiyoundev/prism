@@ -57,8 +57,7 @@ prism/
 │   │   │   │   ├── unicode_detector.py
 │   │   │   │   └── config/         # JSON config (loaded at startup, no DB needed)
 │   │   │   │       ├── brand_variants.json
-│   │   │   │       ├── category_keywords.json
-│   │   │   │       └── allowed_domains.json
+│   │   │   │       └── category_keywords.json
 │   │   │   ├── ml/                 # Phase 2: NLTK classifier + TF-IDF
 │   │   │   │   ├── classifier.py   # Train + inference
 │   │   │   │   ├── features.py     # TF-IDF vectorization + NLTK feature extraction

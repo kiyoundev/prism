@@ -15,6 +15,10 @@ def test_extract_returns_all_keys():
         "ngrams",
         "brand_slug",
         "category",
+        "text_brand_slug",
+        "url_brand_slug",
+        "brand_match_type",
+        "brand_confidence",
     }
 
 
@@ -22,6 +26,18 @@ def test_extract_placeholders():
     result = extract("Your package is ready")
     assert result["brand_slug"] is None
     assert result["category"] == "unknown"
+    assert result["text_brand_slug"] is None
+    assert result["url_brand_slug"] is None
+    assert result["brand_match_type"] is None
+    assert result["brand_confidence"] == 0.0
+
+
+def test_extract_brand_fields_filled_for_known_brand():
+    result = extract("Canada Post: parcel held")
+    assert result["brand_slug"] == "canada-post"
+    assert result["category"] == "delivery"
+    assert result["brand_match_type"] == "exact"
+    assert result["brand_confidence"] == 0.9
 
 
 # --- url extraction ---

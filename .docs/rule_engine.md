@@ -11,6 +11,7 @@ Phase 0 runs before any scoring. It normalizes the raw SMS, extracts structured 
    - Unicode NFKD normalization (`unicodedata`) — accented characters reduced to base form (e.g., "é" → "e")
    - Homoglyph flattening (`unidecode`) — Cyrillic/mathematical substitutes reduced to ASCII equivalents
    - Zero-width character removal (`​`, `‌`, etc.) — used by scammers to break keyword matching
+   - Whitespace collapsing — runs of whitespace (including gaps left by URL-stripping and multi-line text) become a single space
 3. **Tokenization, N-grams & Fuzzy Matching**
    - Split normalized text into word tokens
    - Generate bi-gram and tri-gram sequences for phrase detection
@@ -47,13 +48,14 @@ The engine determines the intent/category of a message (e.g., Delivery, Banking,
     *   **Tokenization:** Split text into word tokens. Generate bi-gram and tri-gram sequences for phrase matching. Apply fuzzy matching (edit-distance) to catch near-miss brand names and keyword variants that exact matching would miss.
 
 2.  **Brand Extraction (Exact/Phrase Match)**
-    *   **Input:** Normalized tokens (Non-lemmatized).
+    *   **Input:** Normalized tokens (Non-lemmatized), matched against the token list directly — not `ngrams`, which cap at 2–3 words and would miss longer aliases (e.g. "united states postal service").
     *   **Why:** Brands are proper nouns ("Rogers", "Tim Hortons"). Lemmatizing them (e.g., "Rogers" -> "Roger") can cause false positives.
     *   **Algorithm:**
-        *   Iterate through `brand_variants.json`.
-        *   Check if any brand alias (multi-word phrase or single token) exists in the message.
-        *   **Priority:** Longest match wins (e.g., "Canada Post" > "Canada").
-    *   **Output:** If match found, return `category` immediately (e.g., `delivery`).
+        *   Iterate through `brand_variants.json` aliases, plus each brand's own name.
+        *   Exact match, spaced form: slide each alias's token sequence over the message tokens. **Priority:** longest alias wins (e.g., "Canada Post" > "Canada"), ties broken by earliest position.
+        *   Exact match, joined form: compare each alias's punctuation-collapsed form (e.g. "canadapost") against single tokens — catches `Canada-Post`, `Canada.Post`, `CanadaPost`, which normalization collapses into one token.
+        *   Fuzzy fallback, only if no exact match and only for aliases with 6+ characters (spaces removed): `rapidfuzz` ratio ≥ 85 against single tokens (joined form) or n-grams (spaced form). Shorter aliases are exact-only — a plain fuzzy check scores "puro" vs "pro" at 86, a false positive the length floor avoids.
+    *   **Output:** If match found, return `category` immediately (e.g., `delivery`), plus `brand_match_type` (`exact` or `fuzzy`) and `brand_confidence`.
 
 3.  **Keyword Scoring (Lemma Match)**
     *   **Input:** Lemmatized tokens (e.g., "delivered" -> "delivery").
@@ -65,9 +67,10 @@ The engine determines the intent/category of a message (e.g., Delivery, Banking,
     *   **Output:** Calculate a score per category.
 
 5.  **Resolution**
-    *   If **URL Brand** detected: Use URL's category (Confidence: 1.0).
-    *   Else if **Text Brand** detected: Use Brand's category (Confidence: 0.9).
-    *   Else if **Top Keyword Score** > Threshold (e.g., 2 hits): Use Top Category (Confidence: 0.8).
+    *   If **URL Brand** detected (link's registered domain matches a brand's `domains` in `brand_variants.json`): Use URL's category (Confidence: 1.0).
+    *   Else if **Text Brand**, exact match: Use Brand's category (Confidence: 0.9).
+    *   Else if **Text Brand**, fuzzy match: Use Brand's category (Confidence: 0.8).
+    *   Else if **Top Keyword Score** > Threshold (e.g., 2 hits) (#20, not yet implemented): Use Top Category (Confidence: 0.8 — currently the same number as text-brand fuzzy above; #20 should pick a distinct value to keep the two signals distinguishable).
     *   Else: Return `unknown` (Confidence: 0.0).
 
 ## URL Checker
@@ -78,7 +81,7 @@ The engine determines the intent/category of a message (e.g., Delivery, Banking,
    - **Google redirect** — `google.com/url?q=https://parking-canada-ticket.com`: The real destination is in the `q` query parameter. Scammers use this because the surface domain is `google.com`, bypassing naive domain-only filters.
    - **Google AMP Cache** — `google.com/amp/fedexclient-delivery.com`: Google's AMP proxy serves cached pages at `google.com/amp/s/{domain}` or `google.com/amp/{domain}`. Scammers publish an AMP-compatible phishing page so the visible domain is always `google.com`.
    - Emit a `REDIRECT_UNWRAPPED` signal and analyze the resolved destination URL recursively.
-4. **Allowlist / denylist checks.** Compare the registered domain against brand-specific allowlists (canonical domains for Purolator, CRA, banks) and global denylists of known bad hosts, URL shorteners, or previously-seen typosquats. Allowlist hits can immediately boost confidence; deny hits add strong risk.
+4. **Allowlist / denylist checks.** Compare the registered domain against each brand's canonical `domains` in `brand_variants.json` (Purolator, CRA, banks, etc. — a brand's domains double as its allowlist) and global denylists of known bad hosts, URL shorteners, or previously-seen typosquats. Allowlist hits can immediately boost confidence; deny hits add strong risk.
 5. **Heuristic scoring.** When a domain misses both lists, apply fast heuristics: homoglyph/punycode detection, suspicious or free-hosting TLDs, over-hyphenated brand keywords, entropy of the hostname, or WHOIS-age (flag domains registered within the last N days). Additional signals to apply:
    - **Brand-as-subdomain** — `purolator.com-payrp.vip`: The real brand name appears as a subdomain of a scam domain designed to look like the brand's domain at a glance. `tldextract` correctly parses this as subdomain=`purolator`, domain=`com-payrp`, suffix=`vip` — but brand-mismatch logic must check the full FQDN (not just the registered domain) for brand name presence. Signal: `BRAND_SUBDOMAIN_IMPERSONATION`.
    - **Digit-prefixed domain** — `1royalbankomni-manage.com`, `1bmo-securityverify0.info`: Legitimate brand domains almost never begin with a digit. Signal: `DOMAIN_STARTS_WITH_DIGIT`.

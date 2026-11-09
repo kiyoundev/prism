@@ -1,6 +1,7 @@
 from app.core.preprocessing.normalizer import normalize
 from app.core.preprocessing.tokenizer import get_ngrams, tokenize
 from app.core.preprocessing.url_extractor import extract_urls
+from app.core.rules.category_extractor import detect_brand
 
 
 def extract(text: str) -> dict:
@@ -17,11 +18,12 @@ def extract(text: str) -> dict:
     tokens = tokenize(normalized_text)
     ngrams = get_ngrams(tokens)
 
-    return {
+    artifacts = {
         "extracted_urls": extracted_urls,
         "normalized_text": normalized_text,
         "tokens": tokens,
         "ngrams": ngrams,
-        "brand_slug": None,
-        "category": "unknown",
     }
+    artifacts.update(detect_brand(artifacts))
+
+    return artifacts
