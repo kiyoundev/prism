@@ -62,3 +62,7 @@ storybook-static
 
 # NLTK downloaded data
 backend/data/nltk_data/
+
+# supabase CLI local cache (project ref, pooler url, etc.)
+supabase/.temp/
+supabase/.branches/
